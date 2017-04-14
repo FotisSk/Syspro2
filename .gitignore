@@ -34,3 +34,6 @@
 
 # Text files
 *.txt
+
+jms_console
+jms_coord
