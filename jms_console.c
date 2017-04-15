@@ -52,9 +52,10 @@ int main(int argc, char const *argv[])
 			}
 		}
 	}
-	printf("console ~ jms_out: %s, jms_in: %s, file name: %s\n", fifo_READ, fifo_WRITE, fileName);
+	//printf("console ~ jms_out: %s, jms_in: %s, file name: %s\n", fifo_READ, fifo_WRITE, fileName);
 
-	/* OPEN FIFOs */
+
+	/* ________OPEN FIFOs________ */
 	if( (readfd = open(fifo_READ, O_RDONLY | O_NONBLOCK)) < 0)
 	{
 		perror("console: can't open read FIFO");
@@ -65,19 +66,20 @@ int main(int argc, char const *argv[])
 		perror("console: can't open write FIFO");
 		exit(EXIT_FAILURE);
 	}
-
-	/* OPEN FILE */
+	
+	/* ________OPEN FILE________ */
 	fp = fopen(fileName, "r");
 	if(fp)
 	{
 		while( fgets(fileBuf, fileBuf_SIZE, fp) )
 		{
-			/* WRITE TO FIFO */
+			/* ________WRITE TO FIFO________ */
 			n = strlen(fileBuf);
-			//if(fileBuf[n-1] == '\n')
-				//n--;
+			if(fileBuf[n-1] == '\n')	//exclude '\n'
+				n--;
 			write(writefd, fileBuf, n);
 			memset(fileBuf, 0, fileBuf_SIZE);
+
 			while(1)
 			{
 				if( (bytesRead = read(readfd, buf_OK, 3)) > 0)
@@ -87,14 +89,14 @@ int main(int argc, char const *argv[])
 				}
 				else
 				{
-					printf("bytesRead: %d\n", bytesRead);
+					//printf("bytesRead: %d\n", bytesRead);
 				}
 			}
 
 		}
 	}
 	/**********************************************************************************************/
-	//sleep(10);
+
 	close(readfd);
 	close(writefd);
 	fclose(fp);

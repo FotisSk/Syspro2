@@ -13,7 +13,7 @@
 int main(int argc, char const *argv[])
 {
 	int a=0, b=0, c=0, i, job_pools, readfd, writefd, bytesRead;
-	char *w="-w", *r="-r", *l="-l", *n="-n", *fifo_READ, *fifo_WRITE, *path;
+	char *w="-w", *r="-r", *l="-l", *n="-n", *fifo_READ, *fifo_WRITE, *path, *split;
 	char buf[buf_SIZE], buf_OK[] = "OK";
 
 	memset(buf, 0, buf_SIZE);
@@ -57,7 +57,8 @@ int main(int argc, char const *argv[])
 			}
 		}
 	}
-	/* FIFO CREATION */
+
+	/* ________FIFO CREATION________ */
 	if( mkfifo(fifo_READ, PERMS) < 0 && errno != EEXIST)
 	{
 		perror("can't create FIFO (read)");
@@ -90,14 +91,56 @@ int main(int argc, char const *argv[])
 		}
 	}
 
-	/* READ FROM FIFOs */
+	/* ________READ FROM FIFOs________ */
 	while(1)
 	{	
 		if( (bytesRead = read(readfd, buf, buf_SIZE)) > 0)
 		{
 			write(writefd, buf_OK, 3); //eidopoihse to allo akro oti diavastike auto pou esteile
 
-			printf("%s", buf);
+			split = strtok(buf, " \n");
+			if(strcmp(split, SUBMIT) == 0)
+			{
+
+			}
+			else if(strcmp(split, STATUS) == 0)
+			{
+
+			}
+			else if(strcmp(split, STATUSALL) == 0)
+			{
+
+			}
+			else if(strcmp(split, SHOWACTIVE) == 0)
+			{
+
+			}
+			else if(strcmp(split, SHOWPOOLS) == 0)
+			{
+
+			}
+			else if(strcmp(split, SHOWFINISHED) == 0)
+			{
+
+			}
+			else if(strcmp(split, SUSPEND) == 0)
+			{
+
+			}
+			else if(strcmp(split, RESUME) == 0)
+			{
+
+			}
+			else if(strcmp(split, SHUTDOWN) == 0)
+			{
+
+			}
+			else
+			{
+				printf("Wrong command given\n");
+			}
+
+			printf("%s\n", buf);
 			memset(buf, 0, buf_SIZE);
 		}
 		else if( bytesRead == 0)
@@ -108,11 +151,11 @@ int main(int argc, char const *argv[])
 		}
 		else if(bytesRead < 0)
 		{
-			//printf("n: %d\n", n);
+			//printf("n: %d\n", bytesRead);
 			memset(buf, 0, buf_SIZE);
 		}
 	}
-		
+
 	close(readfd);
 	close(writefd);
 	free(fifo_READ);
