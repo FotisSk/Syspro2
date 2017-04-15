@@ -126,7 +126,7 @@ int main(int argc, char const *argv[])
 				{
 					printf("I am parent process %d with child %d\n", getpid(), pid);
 
-					wait(&status);
+					waitpid(-1, &status, WNOHANG);
 
 					if(WIFEXITED(status)) //an einai != 0 diladi true
 					{
