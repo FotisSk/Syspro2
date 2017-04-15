@@ -7,14 +7,17 @@
 #include <sys/stat.h>
 #include <sys/errno.h>
 #include <sys/select.h>
+#include <sys/wait.h>
+
 
 #include "definition.h"
 
 int main(int argc, char const *argv[])
 {
-	int a=0, b=0, c=0, i, job_pools, readfd, writefd, bytesRead;
-	char *w="-w", *r="-r", *l="-l", *n="-n", *fifo_READ, *fifo_WRITE, *path, *split;
+	int a=0, b=0, c=0, i, job_pools, readfd, writefd, bytesRead, status, exit_status;
+	char *w="-w", *r="-r", *l="-l", *n="-n", *fifo_READ, *fifo_WRITE, *path, *split, **next;
 	char buf[buf_SIZE], buf_OK[] = "OK";
+	pid_t pid;
 
 	memset(buf, 0, buf_SIZE);
 	if(argc == 9)
@@ -92,6 +95,8 @@ int main(int argc, char const *argv[])
 	}
 
 	/* ________READ FROM FIFOs________ */
+
+	char *arguments[1024];
 	while(1)
 	{	
 		if( (bytesRead = read(readfd, buf, buf_SIZE)) > 0)
@@ -101,7 +106,39 @@ int main(int argc, char const *argv[])
 			split = strtok(buf, " \n");
 			if(strcmp(split, SUBMIT) == 0)
 			{
+				next = arguments;
+				split = strtok(NULL, " \n");
+				while(split)
+				{
+					*next++ = split;
+					//printf("%s\n",split);
+					split = strtok(NULL, " \n");
+				}
+				*next = NULL;
+				printf("Checking:\n");
+				for(next = arguments; *next != 0; next++)
+					puts(*next);
 
+				pid = fork();
+				if(pid == 0)	//child
+					execvp(arguments[0], arguments);
+				else if(pid > 0) 	//father
+				{
+					printf("I am parent process %d with child %d\n", getpid(), pid);
+
+					wait(&status);
+
+					if(WIFEXITED(status)) //an einai != 0 diladi true
+					{
+						exit_status = WEXITSTATUS(status);
+						printf("exit status from %d was %d\n", pid, exit_status);
+					}
+				}
+				else 	//fork failed
+				{
+					perror("could not fork");
+					exit(EXIT_FAILURE);
+				}
 			}
 			else if(strcmp(split, STATUS) == 0)
 			{
@@ -113,7 +150,7 @@ int main(int argc, char const *argv[])
 			}
 			else if(strcmp(split, SHOWACTIVE) == 0)
 			{
-
+				printf("show active\n");
 			}
 			else if(strcmp(split, SHOWPOOLS) == 0)
 			{
@@ -140,8 +177,10 @@ int main(int argc, char const *argv[])
 				printf("Wrong command given\n");
 			}
 
-			printf("%s\n", buf);
+			//printf("%s\n", buf);
 			memset(buf, 0, buf_SIZE);
+			memset(arguments, 0, 1024);
+			printf("\n");
 		}
 		else if( bytesRead == 0)
 		{
@@ -153,6 +192,7 @@ int main(int argc, char const *argv[])
 		{
 			//printf("n: %d\n", bytesRead);
 			memset(buf, 0, buf_SIZE);
+
 		}
 	}
 
