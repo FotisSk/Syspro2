@@ -12,11 +12,11 @@
 
 int main(int argc, char const *argv[])
 {
-	int a=0, b=0, c=0, i, job_pools, readfd, writefd, ret;
+	int a=0, b=0, c=0, i, job_pools, readfd, writefd, bytesRead;
 	char *w="-w", *r="-r", *l="-l", *n="-n", *fifo_READ, *fifo_WRITE, *path;
-	struct timeval timeout;
-	fd_set selectWriteFds;
+	char buf[buf_SIZE], buf_OK[] = "OK";
 
+	memset(buf, 0, buf_SIZE);
 	if(argc == 9)
 	{
 		for(i=1; i<9; i=i+2)
@@ -75,23 +75,44 @@ int main(int argc, char const *argv[])
 		perror("coord: can't open read FIFO");
 		exit(EXIT_FAILURE);
 	}
-	//sleep(10);
-	//while(1)
-	//{
-		//FD_ZERO(&selectWriteFds);
-		//FD_SET(readfd, &selectWriteFds);
 
-		//timeout.tv_sec = 15;
-		//timeout.tv_usec = 0;
-		//ret = select(readfd+1, &selectWriteFds, NULL, NULL, &timeout);
-
-		if( (writefd = open(fifo_WRITE, O_WRONLY | O_NONBLOCK)) < 0)
+	while(1)
+	{
+		if((bytesRead = read(readfd, buf, buf_SIZE)) == -1)
 		{
-			perror("coord: can't open write FIFO");
-			exit(EXIT_FAILURE);
+			if( (writefd = open(fifo_WRITE, O_WRONLY | O_NONBLOCK)) < 0)
+			{
+				perror("coord: can't open write FIFO");
+				exit(EXIT_FAILURE);
+			}
+			printf("bytesRead: %d, writefd: %d\n",bytesRead, writefd );
+			break;
 		}
-		//break;
-	//}
+	}
+
+	/* READ FROM FIFOs */
+	while(1)
+	{	
+		if( (bytesRead = read(readfd, buf, buf_SIZE)) > 0)
+		{
+			write(writefd, buf_OK, 3); //eidopoihse to allo akro oti diavastike auto pou esteile
+
+			printf("%s", buf);
+			memset(buf, 0, buf_SIZE);
+		}
+		else if( bytesRead == 0)
+		{
+			printf("End Of File\n");
+			memset(buf, 0, buf_SIZE);
+			break;
+		}
+		else if(bytesRead < 0)
+		{
+			//printf("n: %d\n", n);
+			memset(buf, 0, buf_SIZE);
+		}
+	}
+		
 	close(readfd);
 	close(writefd);
 	free(fifo_READ);

@@ -12,6 +12,7 @@
 #define SHUTDOWN "shutdown"
 
 #define fileBuf_SIZE 1024
+#define buf_SIZE 1024
 #define PERMS 0666
 
 #endif

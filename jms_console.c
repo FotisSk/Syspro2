@@ -11,8 +11,8 @@
 
 int main(int argc, char const *argv[])
 {
-	int i, a=0, b=0, c=0, readfd, writefd, n;
-	char fileBuf[fileBuf_SIZE];
+	int i, a=0, b=0, c=0, readfd, writefd, n, bytesRead;
+	char fileBuf[fileBuf_SIZE], buf_OK[3];
 	char *w="-w", *r="-r", *o="-o", *fifo_READ, *fifo_WRITE, *fileName;
 	FILE *fp;
 
@@ -78,6 +78,18 @@ int main(int argc, char const *argv[])
 				//n--;
 			write(writefd, fileBuf, n);
 			memset(fileBuf, 0, fileBuf_SIZE);
+			while(1)
+			{
+				if( (bytesRead = read(readfd, buf_OK, 3)) > 0)
+				{
+					memset(buf_OK, 0, 3);
+					break;
+				}
+				else
+				{
+					printf("bytesRead: %d\n", bytesRead);
+				}
+			}
 
 		}
 	}
@@ -85,6 +97,7 @@ int main(int argc, char const *argv[])
 	//sleep(10);
 	close(readfd);
 	close(writefd);
+	fclose(fp);
 	free(fifo_READ);
 	free(fifo_WRITE);
 	free(fileName);
