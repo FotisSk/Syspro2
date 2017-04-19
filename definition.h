@@ -17,6 +17,7 @@
 
 typedef struct coordToPool
 {
+	int poolPid;
 	int poolNum;
 	int in;	//read
 	int out; //write
