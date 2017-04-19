@@ -15,4 +15,11 @@
 #define buf_SIZE 1024
 #define PERMS 0666
 
+typedef struct coordToPool
+{
+	int poolNum;
+	int in;	//read
+	int out; //write
+}coordToPool;
+
 #endif
