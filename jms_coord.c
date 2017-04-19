@@ -14,9 +14,10 @@
 
 int main(int argc, char const *argv[])
 {
-	int a=0, b=0, c=0, i, job_pools, readfd, writefd, bytesRead, status, exit_status;
+	int a=0, b=0, c=0, i, maxJobsInPool, readfd, writefd, bytesRead, status, exit_status, jobCounter, poolCounter, jobID, nextAvailablePos, size;
 	char *w="-w", *r="-r", *l="-l", *n="-n", *fifo_READ, *fifo_WRITE, *path, *split, **next;
-	char buf[buf_SIZE], buf_OK[] = "OK";
+	char buf[buf_SIZE], poolName_in[15], poolName_out[15], poolBuf[buf_SIZE], buf_OK[] = "OK";
+	coordToPool *coordStorageArray;
 	pid_t pid;
 
 	memset(buf, 0, buf_SIZE);
@@ -44,7 +45,7 @@ int main(int argc, char const *argv[])
 			}
 			else if(strcmp(argv[i], n) == 0)
 			{
-				job_pools = atoi(argv[i+1]);
+				maxJobsInPool = atoi(argv[i+1]);
 			}
 			else
 			{
@@ -60,7 +61,10 @@ int main(int argc, char const *argv[])
 			}
 		}
 	}
-
+	nextAvailablePos = 0;
+	size = 10;
+	coordStorageArray = malloc(oldSize * sizeof(coordToPool));
+	
 	/* ________FIFO CREATION________ */
 	if( mkfifo(fifo_READ, PERMS) < 0 && errno != EEXIST)
 	{
@@ -97,15 +101,101 @@ int main(int argc, char const *argv[])
 	/* ________READ FROM FIFOs________ */
 
 	char *arguments[1024];
+	jobCounter = 0;
+	poolCounter = 0;
+	jobID = 0;
 	while(1)
 	{	
 		if( (bytesRead = read(readfd, buf, buf_SIZE)) > 0)
 		{
 			write(writefd, buf_OK, 3); //eidopoihse to allo akro oti diavastike auto pou esteile
 
+
 			split = strtok(buf, " \n");
 			if(strcmp(split, SUBMIT) == 0)
 			{
+				jobCounter++;
+				jobID++;
+
+				if(poolCounter*maxJobsInPool >= jobCounter)	//de xreiazetai neo pool
+				{
+					poolNum = (jobCounter-1) / maxJobsInPool;
+					sprintf(poolName_out, "pool%d_out", poolNum);
+					write(, buff, buf_SIZE);
+				}
+				else 	//xreiazetai neo pool
+				{
+					poolCounter++;
+				
+					/* ________FIFO CREATION________ */
+					sprintf(poolName_in, "pool%d_in", poolCounter);
+					if( mkfifo(poolName_in, PERMS) < 0 && errno != EEXIST)
+					{
+						perror("can't create FIFO (read)");
+						exit(EXIT_FAILURE);
+					}
+
+					sprintf(poolName_out, "pool%d_out", poolCounter);
+					if( mkfifo(fifo_WRITE, PERMS) < 0 && errno != EEXIST )
+					{
+						perror("can't create FIFO (write)");
+						exit(EXIT_FAILURE);
+					}
+
+					printf("created pool%d FIFOs\n", poolCounter);
+
+					pid = fork();
+					if(pid > 0)	//father
+					{
+						/* OPEN FIFOs */
+						if( (tempReadFd = open(poolName_in, O_RDONLY | O_NONBLOCK)) < 0)
+						{
+							perror("coord: can't open read FIFO");
+							exit(EXIT_FAILURE);
+						}
+
+						while(1)
+						{
+							if((bytesRead = read(tempReadFd, buf, buf_SIZE)) == -1)
+							{
+								if( (tempWriteFd = open(poolName_out, O_WRONLY | O_NONBLOCK)) < 0)
+								{
+									perror("coord: can't open write FIFO");
+									exit(EXIT_FAILURE);
+								}
+								printf("bytesRead: %d, writefd: %d\n",bytesRead, tempWriteFd );
+								break;
+							}
+						}
+						printf("opened pool%d FIFOs\n", poolCounter);
+
+						if(nextAvailablePos >= oldSize)
+						{
+							printf("realloc\n");
+							size = 2*size;
+							coordStorageArray = realloc(coordStorageArray, size);
+						}
+						coordStorageArray[nextAvailablePos].poolNum = poolCounter;
+						coordStorageArray[nextAvailablePos].in = tempReadFd;
+						coordStorageArray[nextAvailablePos].out = tempWriteFd;
+						nextAvailablePos++;
+
+						//memset(poolName_in, 0, 15);
+						//memset(poolName_out, 0, 15);
+					}
+					else if(pid == 0)	//child
+					{
+						
+					}
+					else //fork failed
+					{
+						perror("could not fork");
+						exit(EXIT_FAILURE);
+					}
+
+				}
+
+
 				next = arguments;
 				split = strtok(NULL, " \n");
 				while(split)
@@ -121,7 +211,10 @@ int main(int argc, char const *argv[])
 
 				pid = fork();
 				if(pid == 0)	//child
-					execvp(arguments[0], arguments);
+				{
+					//execvp(arguments[0], arguments);
+
+				}
 				else if(pid > 0) 	//father
 				{
 					printf("I am parent process %d with child %d\n", getpid(), pid);
