@@ -14,7 +14,7 @@
 
 int main(int argc, char const *argv[])
 {
-	int a=0, b=0, c=0, i, maxJobsInPool, readfd, writefd, bytesRead, status, exit_status, jobCounter, poolCounter, jobID, nextAvailablePos, size;
+	int a=0, b=0, c=0, i, maxJobsInPool, readfd, writefd, bytesRead, status, exit_status, jobCounter, poolCounter, jobID, nextAvailablePos, size, poolNum, tempReadFd, tempWriteFd;
 	char *w="-w", *r="-r", *l="-l", *n="-n", *fifo_READ, *fifo_WRITE, *path, *split, **next;
 	char buf[buf_SIZE], poolName_in[15], poolName_out[15], poolBuf[buf_SIZE], buf_OK[] = "OK";
 	coordToPool *coordStorageArray;
@@ -63,7 +63,7 @@ int main(int argc, char const *argv[])
 	}
 	nextAvailablePos = 0;
 	size = 10;
-	coordStorageArray = malloc(oldSize * sizeof(coordToPool));
+	coordStorageArray = malloc(size * sizeof(coordToPool));
 	
 	/* ________FIFO CREATION________ */
 	if( mkfifo(fifo_READ, PERMS) < 0 && errno != EEXIST)
@@ -98,8 +98,6 @@ int main(int argc, char const *argv[])
 		}
 	}
 
-	/* ________READ FROM FIFOs________ */
-
 	char *arguments[1024];
 	jobCounter = 0;
 	poolCounter = 0;
@@ -119,9 +117,9 @@ int main(int argc, char const *argv[])
 
 				if(poolCounter*maxJobsInPool >= jobCounter)	//de xreiazetai neo pool
 				{
-					poolNum = (jobCounter-1) / maxJobsInPool;
-					sprintf(poolName_out, "pool%d_out", poolNum);
-					write(, buff, buf_SIZE);
+					//poolNum = (jobCounter-1) / maxJobsInPool;
+					//sprintf(poolName_out, "pool%d_out", poolNum);
+					//write(, buff, buf_SIZE);
 				}
 				else 	//xreiazetai neo pool
 				{
@@ -169,12 +167,13 @@ int main(int argc, char const *argv[])
 						}
 						printf("opened pool%d FIFOs\n", poolCounter);
 
-						if(nextAvailablePos >= oldSize)
+						if(nextAvailablePos >= size)
 						{
 							printf("realloc\n");
 							size = 2*size;
 							coordStorageArray = realloc(coordStorageArray, size);
 						}
+						coordStorageArray[nextAvailablePos].poolPid = pid;
 						coordStorageArray[nextAvailablePos].poolNum = poolCounter;
 						coordStorageArray[nextAvailablePos].in = tempReadFd;
 						coordStorageArray[nextAvailablePos].out = tempWriteFd;
@@ -286,6 +285,19 @@ int main(int argc, char const *argv[])
 			//printf("n: %d\n", bytesRead);
 			memset(buf, 0, buf_SIZE);
 
+		}
+		
+		//elegxos an termatise kapoio paidi-pool
+		for(i=0; i<nextAvailablePos; i++)
+		{
+			if(waitpid(coordStorageArray[i].poolPid, &status, WNOHANG) > 0)	//tote auto to paidi-pool termatise
+			{
+				//do stuff
+				//...
+					
+				close(coordStorageArray[i].in);
+				close(coordStorageArray[i].out);
+			}
 		}
 	}
 
