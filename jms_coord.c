@@ -9,18 +9,22 @@
 #include <sys/select.h>
 #include <sys/wait.h>
 
-
 #include "definition.h"
 
 int main(int argc, char const *argv[])
 {
 	int a=0, b=0, c=0, i, maxJobsInPool, readfd, writefd, bytesRead, status, exit_status, jobCounter, 
-		poolCounter, jobID, nextAvailablePos, size, poolNum, tempReadFd_coord, tempWriteFd_coord, tempReadFd_pool, tempWriteFd_pool;
+		poolCounter, jobID, nextAvailablePos, nextAvailablePos_pool, size, poolNum, tempReadFd_coord, tempWriteFd_coord, tempReadFd_pool,
+		 tempWriteFd_pool, jobPID, stderrToFile, stdoutToFile, finishedJobs;
 
-	char *w="-w", *r="-r", *l="-l", *n="-n", *fifo_READ, *fifo_WRITE, *path, *split, **next;
-	char buf[buf_SIZE], poolName_in[15], poolName_out[15], poolBuf[buf_SIZE], buf_OK[] = "OK";
+	char *w="-w", *r="-r", *l="-l", *n="-n", *fifo_READ, *fifo_WRITE, *path, *split, *split2,**next;
+	char buf[buf_SIZE], copyBuf[buf_SIZE], poolName_in[15], poolName_out[15], dirName[50], jobPath[100], poolBuf[buf_SIZE], buf_reply[3], buf_OK[] = "OK";
 	coordToPool *coordStorageArray;
+	jobInfo *poolStorageArray;
 	pid_t pid;
+	mode_t fdmode;
+
+	fdmode = (S_IRUSR, S_IWUSR, S_IRGRP, S_IROTH);
 
 	memset(buf, 0, buf_SIZE);
 	if(argc == 9)
@@ -110,7 +114,7 @@ int main(int argc, char const *argv[])
 		{
 			write(writefd, buf_OK, 3); //eidopoihse to allo akro oti diavastike auto pou esteile
 
-
+			strcpy(copyBuf, buf);
 			split = strtok(buf, " \n");
 			if(strcmp(split, SUBMIT) == 0)
 			{
@@ -169,20 +173,28 @@ int main(int argc, char const *argv[])
 						}
 						printf("opened pool%d FIFOs\n", poolCounter);
 
-						//edo prepei na steilei to split sto write gia na to kanei read to pool kai na perimenei ok oti to diavase
-						//...
-
 						if(nextAvailablePos >= size)
 						{
 							printf("realloc\n");
 							size = 2*size;
 							coordStorageArray = realloc(coordStorageArray, size);
 						}
-						coordStorageArray[nextAvailablePos].poolPid = pid;
-						coordStorageArray[nextAvailablePos].poolNum = poolCounter;
+						coordStorageArray[nextAvailablePos].pool_PID = pid;
+						coordStorageArray[nextAvailablePos].pool_NUM = poolCounter;
 						coordStorageArray[nextAvailablePos].in = tempReadFd_coord;
 						coordStorageArray[nextAvailablePos].out = tempWriteFd_coord;
 						nextAvailablePos++;
+
+					
+						write(tempWriteFd_coord, copyBuf, buf_SIZE);
+						while(1)
+						{
+							if( (bytesRead = read(tempReadFd_coord, buf_reply, 3)) > 0)
+							{
+								memset(buf_reply, 0, 3);
+								break;
+							}
+						}
 
 						//memset(poolName_in, 0, 15);
 						//memset(poolName_out, 0, 15);
@@ -201,49 +213,128 @@ int main(int argc, char const *argv[])
 							exit(EXIT_FAILURE);
 						}
 
-						/* Creating argument array */ //kalitera na to pairnei apo to fifo kai oxi apo to fork gia na to valo se read loop
-						next = arguments;
-						split = strtok(NULL, " \n");
-						while(split)
+						finishedJobs = 0;
+						poolStorageArray = malloc(maxJobsInPool * sizeof(jobInfo));
+						for(i=0; i<maxJobsInPool; i++)
 						{
-							*next++ = split;
-							//printf("%s\n",split);
-							split = strtok(NULL, " \n");
+							poolStorageArray[i].job_PID = -1;
+							poolStorageArray[i].job_NUM = -1;
+							poolStorageArray[i].job_STATUS = -1;
 						}
-						*next = NULL;
-						printf("Checking:\n");
-						for(next = arguments; *next != 0; next++)
-							puts(*next);
-			
+						nextAvailablePos_pool = 0;
 
-						pid = fork();
-						if(pid > 0) 	//pool (father)
+						/* Keep reading and checking */
+						while(1)
 						{
-							printf("I am pool process %d with child %d\n", getpid(), pid);
-
-							sleep(1); //testing only. na figei
-							waitpid(-1, &status, WNOHANG);
-
-							if(WIFEXITED(status)) //an einai != 0 diladi true
+							if( (bytesRead = read(tempReadFd_pool, poolBuf, buf_SIZE)) > 0)
 							{
-								exit_status = WEXITSTATUS(status);
-								printf("exit status from %d was %d\n", pid, exit_status);
+								write(tempWriteFd_pool, buf_OK, 3);		//pes ston coord oti diavastike
+
+								split2 = strtok(copyBuf, " \n");
+								if(strcmp(split2, SUBMIT) == 0)
+								{
+									/* Creating argument array */
+									next = arguments;
+									split2 = strtok(NULL, " \n");
+									while(split2)
+									{
+										*next++ = split2;
+										//printf("%s\n",split2);
+										split2 = strtok(NULL, " \n");
+									}
+									*next = NULL;
+
+									printf("Checking:\n");
+									for(next = arguments; *next != 0; next++)
+										puts(*next);
+
+									pid = fork();
+									if(pid > 0) 	//pool (father)
+									{
+										printf("I am pool process: %d with job child: %d\n", getpid(), pid);
+
+										poolStorageArray[nextAvailablePos_pool].job_PID = pid;
+										poolStorageArray[nextAvailablePos_pool].job_NUM = jobCounter;
+										poolStorageArray[nextAvailablePos_pool].job_STATUS = 0;  			//status -> 0:active, 1:finished, 2:suspended
+										nextAvailablePos_pool++;
+
+										//sleep(1); //testing only. na figei
+										//waitpid(-1, &status, WNOHANG);
+										/*
+										if(WIFEXITED(status)) //an einai != 0 diladi true
+										{
+											exit_status = WEXITSTATUS(status);
+											printf("exit status from %d was %d\n", pid, exit_status);
+										}
+										*/
+									}
+									else if(pid == 0)	//job (child)
+									{
+										/* directory and file creation */
+										jobPID = getpid();
+
+										sprintf(dirName, "sdi1000155_%d_%d", jobID, jobPID);
+										mkdir(dirName, PERMS);
+
+										memset(jobPath, 0, 100);
+										sprintf(jobPath, "%s/stdout_%d.txt", dirName, jobID);
+										printf("job Path: %s\n", jobPath);
+										if ( (stdoutToFile = open(jobPath, O_CREAT | O_TRUNC | O_RDWR, PERMS)) == -1)
+										{
+											perror("creating out file");
+											exit(EXIT_FAILURE);
+										}
+
+										memset(jobPath, 0, 100);
+										sprintf(jobPath, "%s/stderr_%d.txt", dirName, jobID);
+										if ( (stderrToFile = open(jobPath, O_CREAT | O_TRUNC | O_RDWR, PERMS)) == -1)
+										{
+											perror("creating err file");
+											exit(EXIT_FAILURE);
+										}
+
+										/* redirection */
+										dup2(stdoutToFile, 1);
+										dup2(stderrToFile, 2);
+
+										close(stdoutToFile);
+										close(stderrToFile);
+
+										execvp(arguments[0], arguments);
+
+									}
+									else 
+									{
+										perror("(pool) could not fork");
+										exit(EXIT_FAILURE);
+									}
+								}//end_if
+	 
 							}
-						}
-						else if(pid == 0)	//job (child)
-						{
-							//thelei mkdir, create 2 arxeia mesa kai anakatefthinsi se auta
-							//...
+							else if(bytesRead == 0)		//eof
+							{
+								printf("EOF\n");
+							}
 
-							execvp(arguments[0], arguments);
+							for(i=0; i<nextAvailablePos_pool; i++)
+							{
+								//printf("(pool -> job) i: %d\n",i );
+								if(poolStorageArray[i].job_STATUS == 0)
+								{
+									if(waitpid(poolStorageArray[i].job_PID, &status, WNOHANG) > 0)	//tote auto to paidi-job termatise
+									{
+										finishedJobs++;
+										poolStorageArray[i].job_STATUS = 1;
+										printf("job%d (%d) has finished\n", poolStorageArray[i].job_NUM, poolStorageArray[i].job_PID);
+									}
+								}
+							}
+							memset(poolBuf, 0, buf_SIZE);
 
-						}
-						else 
-						{
-							perror("(pool) could not fork");
-							exit(EXIT_FAILURE);
-						}
+							if(finishedJobs == maxJobsInPool)
+								exit(0);
 
+						}//end_while
 					}
 					else 
 					{
@@ -300,8 +391,8 @@ int main(int argc, char const *argv[])
 			printf("End Of File\n");
 			memset(buf, 0, buf_SIZE);
 
-			sleep(1); //testing only. na figei
-			waitpid(-1, &status, WNOHANG);
+			//sleep(1); //testing only. na figei
+			//waitpid(-1, &status, WNOHANG);
 
 			break;
 		}
@@ -313,21 +404,24 @@ int main(int argc, char const *argv[])
 		}
 		
 		//elegxos an termatise kapoio paidi-pool
-		printf("elegxos lul\n");
+		//printf("elegxos termatismou pool\n");
 		for(i=0; i<nextAvailablePos; i++)
 		{
-			printf("i: %d\n", i);
-			if(waitpid(coordStorageArray[i].poolPid, &status, WNOHANG) > 0)	//tote auto to paidi-pool termatise
+			printf("(coord -> pool) i: %d\n", i);
+			if(waitpid(coordStorageArray[i].pool_PID, &status, WNOHANG) > 0)	//tote auto to paidi-pool termatise
 			{
 				//do stuff
 				//...
-				printf("pool (child) with pid: %d has terminated\n", coordStorageArray[i].poolPid);
+				printf("pool%d (%d) has finished\n", coordStorageArray[i].pool_NUM, coordStorageArray[i].pool_PID);
 					
 				close(coordStorageArray[i].in);
 				close(coordStorageArray[i].out);
 			}
 		}
 	}
+	printf("sleeping...\n");
+	sleep(20);
+
 
 	close(readfd);
 	close(writefd);
