@@ -169,6 +169,9 @@ int main(int argc, char const *argv[])
 						}
 						printf("opened pool%d FIFOs\n", poolCounter);
 
+						//edo prepei na steilei to split sto write gia na to kanei read to pool kai na perimenei ok oti to diavase
+						//...
+
 						if(nextAvailablePos >= size)
 						{
 							printf("realloc\n");
@@ -198,7 +201,7 @@ int main(int argc, char const *argv[])
 							exit(EXIT_FAILURE);
 						}
 
-						/* Creating argument array */
+						/* Creating argument array */ //kalitera na to pairnei apo to fifo kai oxi apo to fork gia na to valo se read loop
 						next = arguments;
 						split = strtok(NULL, " \n");
 						while(split)
@@ -214,15 +217,7 @@ int main(int argc, char const *argv[])
 			
 
 						pid = fork();
-						if(pid == 0)	//job (child)
-						{
-							//thelei mkdir, create 2 arxeia mesa kai anakatefthinsi se auta
-							//...
-
-							execvp(arguments[0], arguments);
-
-						}
-						else if(pid > 0) 	//pool (father)
+						if(pid > 0) 	//pool (father)
 						{
 							printf("I am pool process %d with child %d\n", getpid(), pid);
 
@@ -234,6 +229,14 @@ int main(int argc, char const *argv[])
 								exit_status = WEXITSTATUS(status);
 								printf("exit status from %d was %d\n", pid, exit_status);
 							}
+						}
+						else if(pid == 0)	//job (child)
+						{
+							//thelei mkdir, create 2 arxeia mesa kai anakatefthinsi se auta
+							//...
+
+							execvp(arguments[0], arguments);
+
 						}
 						else 
 						{
