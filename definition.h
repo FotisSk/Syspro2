@@ -13,14 +13,21 @@
 
 #define fileBuf_SIZE 1024
 #define buf_SIZE 1024
-#define PERMS 0666
+#define PERMS 0755
 
 typedef struct coordToPool
 {
-	int poolPid;
-	int poolNum;
+	int pool_PID;
+	int pool_NUM;
 	int in;	//read
 	int out; //write
 }coordToPool;
+
+typedef struct jobInfo
+{
+	int job_PID;
+	int job_NUM;
+	int job_STATUS; //0:active, 1:finished, 3:suspended
+}jobInfo;
 
 #endif
