@@ -14,7 +14,9 @@
 
 int main(int argc, char const *argv[])
 {
-	int a=0, b=0, c=0, i, maxJobsInPool, readfd, writefd, bytesRead, status, exit_status, jobCounter, poolCounter, jobID, nextAvailablePos, size, poolNum, tempReadFd, tempWriteFd;
+	int a=0, b=0, c=0, i, maxJobsInPool, readfd, writefd, bytesRead, status, exit_status, jobCounter, 
+		poolCounter, jobID, nextAvailablePos, size, poolNum, tempReadFd_coord, tempWriteFd_coord, tempReadFd_pool, tempWriteFd_pool;
+
 	char *w="-w", *r="-r", *l="-l", *n="-n", *fifo_READ, *fifo_WRITE, *path, *split, **next;
 	char buf[buf_SIZE], poolName_in[15], poolName_out[15], poolBuf[buf_SIZE], buf_OK[] = "OK";
 	coordToPool *coordStorageArray;
@@ -134,7 +136,7 @@ int main(int argc, char const *argv[])
 					}
 
 					sprintf(poolName_out, "pool%d_out", poolCounter);
-					if( mkfifo(fifo_WRITE, PERMS) < 0 && errno != EEXIST )
+					if( mkfifo(poolName_out, PERMS) < 0 && errno != EEXIST )
 					{
 						perror("can't create FIFO (write)");
 						exit(EXIT_FAILURE);
@@ -143,25 +145,25 @@ int main(int argc, char const *argv[])
 					printf("created pool%d FIFOs\n", poolCounter);
 
 					pid = fork();
-					if(pid > 0)	//father
+					if(pid > 0)	//coord (father)
 					{
 						/* OPEN FIFOs */
-						if( (tempReadFd = open(poolName_in, O_RDONLY | O_NONBLOCK)) < 0)
+						if( (tempReadFd_coord = open(poolName_in, O_RDONLY | O_NONBLOCK)) < 0)
 						{
-							perror("coord: can't open read FIFO");
+							perror("(coord) can't open read FIFO");
 							exit(EXIT_FAILURE);
 						}
 
 						while(1)
 						{
-							if((bytesRead = read(tempReadFd, buf, buf_SIZE)) == -1)
+							if((bytesRead = read(tempReadFd_coord, buf, buf_SIZE)) == -1)
 							{
-								if( (tempWriteFd = open(poolName_out, O_WRONLY | O_NONBLOCK)) < 0)
+								if( (tempWriteFd_coord = open(poolName_out, O_WRONLY | O_NONBLOCK)) < 0)
 								{
-									perror("coord: can't open write FIFO");
+									perror("(coord) can't open write FIFO");
 									exit(EXIT_FAILURE);
 								}
-								printf("bytesRead: %d, writefd: %d\n",bytesRead, tempWriteFd );
+								printf("bytesRead: %d, writefd: %d\n",bytesRead, tempWriteFd_coord );
 								break;
 							}
 						}
@@ -175,61 +177,77 @@ int main(int argc, char const *argv[])
 						}
 						coordStorageArray[nextAvailablePos].poolPid = pid;
 						coordStorageArray[nextAvailablePos].poolNum = poolCounter;
-						coordStorageArray[nextAvailablePos].in = tempReadFd;
-						coordStorageArray[nextAvailablePos].out = tempWriteFd;
+						coordStorageArray[nextAvailablePos].in = tempReadFd_coord;
+						coordStorageArray[nextAvailablePos].out = tempWriteFd_coord;
 						nextAvailablePos++;
 
 						//memset(poolName_in, 0, 15);
 						//memset(poolName_out, 0, 15);
 					}
-					else if(pid == 0)	//child
+					else if(pid == 0)	//pool (child)
 					{
-						
+						/* OPEN FIFOs */
+						if( (tempReadFd_pool = open(poolName_out, O_RDONLY | O_NONBLOCK)) < 0)
+						{
+							perror("coord: can't open read FIFO");
+							exit(EXIT_FAILURE);
+						}
+						if( (tempWriteFd_pool = open(poolName_in, O_WRONLY | O_NONBLOCK)) < 0)
+						{
+							perror("coord: can't open read FIFO");
+							exit(EXIT_FAILURE);
+						}
+
+						/* Creating argument array */
+						next = arguments;
+						split = strtok(NULL, " \n");
+						while(split)
+						{
+							*next++ = split;
+							//printf("%s\n",split);
+							split = strtok(NULL, " \n");
+						}
+						*next = NULL;
+						printf("Checking:\n");
+						for(next = arguments; *next != 0; next++)
+							puts(*next);
+			
+
+						pid = fork();
+						if(pid == 0)	//job (child)
+						{
+							//thelei mkdir, create 2 arxeia mesa kai anakatefthinsi se auta
+							//...
+
+							execvp(arguments[0], arguments);
+
+						}
+						else if(pid > 0) 	//pool (father)
+						{
+							printf("I am pool process %d with child %d\n", getpid(), pid);
+
+							sleep(1); //testing only. na figei
+							waitpid(-1, &status, WNOHANG);
+
+							if(WIFEXITED(status)) //an einai != 0 diladi true
+							{
+								exit_status = WEXITSTATUS(status);
+								printf("exit status from %d was %d\n", pid, exit_status);
+							}
+						}
+						else 
+						{
+							perror("(pool) could not fork");
+							exit(EXIT_FAILURE);
+						}
+
 					}
-					else //fork failed
+					else 
 					{
-						perror("could not fork");
+						perror("(coord) could not fork");
 						exit(EXIT_FAILURE);
 					}
 
-				}
-
-
-				next = arguments;
-				split = strtok(NULL, " \n");
-				while(split)
-				{
-					*next++ = split;
-					//printf("%s\n",split);
-					split = strtok(NULL, " \n");
-				}
-				*next = NULL;
-				printf("Checking:\n");
-				for(next = arguments; *next != 0; next++)
-					puts(*next);
-
-				pid = fork();
-				if(pid == 0)	//child
-				{
-					//execvp(arguments[0], arguments);
-
-				}
-				else if(pid > 0) 	//father
-				{
-					printf("I am parent process %d with child %d\n", getpid(), pid);
-
-					waitpid(-1, &status, WNOHANG);
-
-					if(WIFEXITED(status)) //an einai != 0 diladi true
-					{
-						exit_status = WEXITSTATUS(status);
-						printf("exit status from %d was %d\n", pid, exit_status);
-					}
-				}
-				else 	//fork failed
-				{
-					perror("could not fork");
-					exit(EXIT_FAILURE);
 				}
 			}
 			else if(strcmp(split, STATUS) == 0)
@@ -278,6 +296,10 @@ int main(int argc, char const *argv[])
 		{
 			printf("End Of File\n");
 			memset(buf, 0, buf_SIZE);
+
+			sleep(1); //testing only. na figei
+			waitpid(-1, &status, WNOHANG);
+
 			break;
 		}
 		else if(bytesRead < 0)
@@ -288,12 +310,15 @@ int main(int argc, char const *argv[])
 		}
 		
 		//elegxos an termatise kapoio paidi-pool
+		printf("elegxos lul\n");
 		for(i=0; i<nextAvailablePos; i++)
 		{
+			printf("i: %d\n", i);
 			if(waitpid(coordStorageArray[i].poolPid, &status, WNOHANG) > 0)	//tote auto to paidi-pool termatise
 			{
 				//do stuff
 				//...
+				printf("pool (child) with pid: %d has terminated\n", coordStorageArray[i].poolPid);
 					
 				close(coordStorageArray[i].in);
 				close(coordStorageArray[i].out);
