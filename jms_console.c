@@ -12,7 +12,7 @@
 int main(int argc, char const *argv[])
 {
 	int i, a=0, b=0, c=0, readfd, writefd, n, bytesRead;
-	char fileBuf[fileBuf_SIZE], buf_reply[3];
+	char fileBuf[fileBuf_SIZE], userBuf[userBuf_SIZE], buf_reply[3];
 	char *w="-w", *r="-r", *o="-o", *fifo_READ, *fifo_WRITE, *fileName;
 	FILE *fp;
 
@@ -94,6 +94,33 @@ int main(int argc, char const *argv[])
 			}
 
 		}
+	}
+	//NA MI MPEI AN EXEI DOTHEI SHUTDOWN
+	//if( den exei dothei edoli shutdown, tote... )
+	printf("You are in control\n");
+	printf("> ");
+	while( fgets(userBuf, userBuf_SIZE, stdin) != NULL )
+	{
+		/* ________WRITE TO FIFO________ */
+		n = strlen(userBuf);
+		if(userBuf[n-1] == '\n')	//exclude '\n'
+			n--;
+		write(writefd, userBuf, n);
+		memset(userBuf, 0, userBuf_SIZE);
+
+		while(1)
+		{
+			if( (bytesRead = read(readfd, buf_reply, 3)) > 0)
+			{
+				memset(buf_reply, 0, 3);
+				break;
+			}
+			else
+			{
+				//printf("bytesRead: %d\n", bytesRead);
+			}
+		}
+		printf("> ");
 	}
 	/**********************************************************************************************/
 
