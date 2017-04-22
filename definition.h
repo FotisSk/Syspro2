@@ -12,16 +12,9 @@
 #define SHUTDOWN "shutdown"
 
 #define fileBuf_SIZE 1024
+#define userBuf_SIZE 1024
 #define buf_SIZE 1024
 #define PERMS 0755
-
-typedef struct coordToPool
-{
-	int pool_PID;
-	int pool_NUM;
-	int in;	//read
-	int out; //write
-}coordToPool;
 
 typedef struct jobInfo
 {
@@ -30,5 +23,17 @@ typedef struct jobInfo
 	int job_STATUS; //0:active, 1:finished, 3:suspended
 	int startTimeInSeconds;
 }jobInfo;
+
+
+typedef struct poolInfo
+{
+	int pool_PID;
+	int pool_NUM;
+	int status;	//0:active, 1:finished
+	int in;	//read
+	int out; //write
+	jobInfo *jobInfoArray;
+	int nextAvailablePos;
+}poolInfo;
 
 #endif
