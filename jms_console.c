@@ -12,7 +12,7 @@
 int main(int argc, char const *argv[])
 {
 	int i, a=0, b=0, c=0, readfd, writefd, n, bytesRead;
-	char fileBuf[fileBuf_SIZE], userBuf[userBuf_SIZE], buf_reply[3];
+	char fileBuf[fileBuf_SIZE], userBuf[userBuf_SIZE], messageFromCoord[buf_SIZE];
 	char *w="-w", *r="-r", *o="-o", *fifo_READ, *fifo_WRITE, *fileName;
 	FILE *fp;
 
@@ -66,7 +66,10 @@ int main(int argc, char const *argv[])
 		perror("console: can't open write FIFO");
 		exit(EXIT_FAILURE);
 	}
-	
+
+
+	memset(messageFromCoord, 0, buf_SIZE);
+
 	/* ________OPEN FILE________ */
 	fp = fopen(fileName, "r");
 	if(fp)
@@ -82,14 +85,11 @@ int main(int argc, char const *argv[])
 
 			while(1)
 			{
-				if( (bytesRead = read(readfd, buf_reply, 3)) > 0)
+				if( (bytesRead = read(readfd, messageFromCoord, buf_SIZE)) > 0)
 				{
-					memset(buf_reply, 0, 3);
+					printf("%s\n", messageFromCoord);
+					memset(messageFromCoord, 0, buf_SIZE);
 					break;
-				}
-				else
-				{
-					//printf("bytesRead: %d\n", bytesRead);
 				}
 			}
 
@@ -110,14 +110,11 @@ int main(int argc, char const *argv[])
 
 		while(1)
 		{
-			if( (bytesRead = read(readfd, buf_reply, 3)) > 0)
+			if( (bytesRead = read(readfd, messageFromCoord, buf_SIZE)) > 0)
 			{
-				memset(buf_reply, 0, 3);
+				printf("%s\n", messageFromCoord);
+				memset(messageFromCoord, 0, buf_SIZE);
 				break;
-			}
-			else
-			{
-				//printf("bytesRead: %d\n", bytesRead);
 			}
 		}
 		printf("> ");
