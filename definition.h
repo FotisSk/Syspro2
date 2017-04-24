@@ -29,7 +29,7 @@ typedef struct poolInfo
 {
 	int pool_PID;
 	int pool_NUM;
-	int status;	//0:active, 1:finished
+	int pool_STATUS;	//0:active, 1:finished
 	int in;	//read
 	int out; //write
 	jobInfo *jobInfoArray;
