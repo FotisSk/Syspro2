@@ -11,7 +11,7 @@
 
 int main(int argc, char const *argv[])
 {
-	int i, a=0, b=0, c=0, readfd, writefd, n, bytesRead;
+	int i, a=0, b=0, c=0, readfd, writefd, n, bytesRead, thereIsAFile;
 	char fileBuf[fileBuf_SIZE], userBuf[userBuf_SIZE], messageFromCoord[buf_SIZE], buf_OK[] = "OK";
 	char *w="-w", *r="-r", *o="-o", *fifo_READ, *fifo_WRITE, *fileName;
 	FILE *fp;
@@ -37,6 +37,7 @@ int main(int argc, char const *argv[])
 				c = 1;
 				fileName = malloc( (strlen(argv[i+1])+1) * sizeof(char) );
 				strcpy(fileName, argv[i+1]);
+				thereIsAFile = 1;
 			}
 			else
 			{
@@ -47,13 +48,41 @@ int main(int argc, char const *argv[])
 				if(c == 1)
 					free(fileName);
 
-				printf("(console) acceptable flags: -w -r -o\n");
-				exit(1);
+				printf("(console) acceptable flags: -w -r [-o]\n");
+				exit(EXIT_FAILURE);
 			}
 		}
 	}
-	//printf("console ~ jms_out: %s, jms_in: %s, file name: %s\n", fifo_READ, fifo_WRITE, fileName);
+	else if(argc == 5) //no file given
+	{
+		thereIsAFile = 0;
 
+		for(i=1; i<5; i=i+2)
+		{
+			if(strcmp(argv[i], r) == 0)
+			{
+				a = 1;
+				fifo_READ = malloc( (strlen(argv[i+1])+1) * sizeof(char) );
+				strcpy(fifo_READ, argv[i+1]);
+			}
+			else if(strcmp(argv[i], w) == 0)
+			{
+				b = 1;
+				fifo_WRITE = malloc( (strlen(argv[i+1])+1) * sizeof(char) );
+				strcpy(fifo_WRITE, argv[i+1]);
+			}
+			else
+			{
+				if(a == 1)
+					free(fifo_READ);
+				if(b == 1)
+					free(fifo_WRITE);
+
+				printf("(console) acceptable flags: -w -r [-o]\n");
+				exit(EXIT_FAILURE);
+			}
+		}
+	}	
 
 	/* ________OPEN FIFOs________ */
 	if( (readfd = open(fifo_READ, O_RDONLY | O_NONBLOCK)) < 0)
@@ -70,40 +99,46 @@ int main(int argc, char const *argv[])
 
 	memset(messageFromCoord, 0, buf_SIZE);
 
-	/* ________OPEN FILE________ */
-	fp = fopen(fileName, "r");
-	if(fp)
+	if(thereIsAFile == 1)
 	{
-		while( fgets(fileBuf, fileBuf_SIZE, fp) )
+		/* ________OPEN FILE________ */
+		fp = fopen(fileName, "r");
+		if(fp)
 		{
-			/* ________WRITE TO FIFO________ */
-			n = strlen(fileBuf);
-			if(fileBuf[n-1] == '\n')	//exclude '\n'
-				n--;
-			write(writefd, fileBuf, n);
-			memset(fileBuf, 0, fileBuf_SIZE);
-
-			while(1)
+			while( fgets(fileBuf, fileBuf_SIZE, fp) )
 			{
-				if( (bytesRead = read(readfd, messageFromCoord, buf_SIZE)) > 0)
+				/* ________WRITE TO FIFO________ */
+				n = strlen(fileBuf);
+				if(fileBuf[n-1] == '\n')	//exclude '\n'
+					n--;
+				write(writefd, fileBuf, n);
+				memset(fileBuf, 0, fileBuf_SIZE);
+
+				while(1)
 				{
-					//write(writefd, buf_OK, 3);
-					if(strcmp(messageFromCoord, "PRINTEND") == 0)
+					if( (bytesRead = read(readfd, messageFromCoord, buf_SIZE)) > 0)
 					{
-						memset(messageFromCoord, 0, buf_SIZE);
-						break;
-					}
-					else
-					{
-						write(writefd, buf_OK, 3);
-						printf("%s\n", messageFromCoord);
-						memset(messageFromCoord, 0, buf_SIZE);
-						//break;
+						//write(writefd, buf_OK, 3);
+						if(strcmp(messageFromCoord, "PRINTEND") == 0)
+						{
+							printf("\n");
+							memset(messageFromCoord, 0, buf_SIZE);
+							break;
+						}
+						else
+						{
+							write(writefd, buf_OK, 3);
+							printf("%s\n", messageFromCoord);
+							memset(messageFromCoord, 0, buf_SIZE);
+							//break;
+						}
 					}
 				}
-			}
 
+			}
 		}
+		fclose(fp);
+		free(fileName);
 	}
 	//NA MI MPEI AN EXEI DOTHEI SHUTDOWN
 	//if( den exei dothei edoli shutdown, tote... )
@@ -122,9 +157,19 @@ int main(int argc, char const *argv[])
 		{
 			if( (bytesRead = read(readfd, messageFromCoord, buf_SIZE)) > 0)
 			{
-				printf("%s\n", messageFromCoord);
-				memset(messageFromCoord, 0, buf_SIZE);
-				break;
+				if(strcmp(messageFromCoord, "PRINTEND") == 0)
+				{
+					printf("\n");
+					memset(messageFromCoord, 0, buf_SIZE);
+					break;
+				}
+				else
+				{
+					write(writefd, buf_OK, 3);
+					printf("%s\n", messageFromCoord);
+					memset(messageFromCoord, 0, buf_SIZE);
+					//break;
+				}
 			}
 		}
 		printf("> ");
@@ -133,9 +178,7 @@ int main(int argc, char const *argv[])
 
 	close(readfd);
 	close(writefd);
-	fclose(fp);
 	free(fifo_READ);
 	free(fifo_WRITE);
-	free(fileName);
-	exit(0);
+	exit(EXIT_SUCCESS);
 }

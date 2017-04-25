@@ -14,14 +14,14 @@
 
 int main(int argc, char const *argv[])
 {
-	int a=0, b=0, c=0, i, j, maxJobsInPool, readfd, writefd, bytesRead, status, exit_status, jobCounter, 
+	int a=0, b=0, c=0, i, j, maxJobsInPool, readfd, writefd, bytesRead, status, exit_status, jobCounter, oldSize,
 		poolCounter, jobID, nextAvailablePos, nextAvailablePos_pool, size, poolNum, tempReadFd_coord, tempWriteFd_coord, tempReadFd_pool,
-		 tempWriteFd_pool, jobPID, stderrToFile, stdoutToFile, finishedJobs;
+		 tempWriteFd_pool, jobPID, stderrToFile, stdoutToFile, finishedJobs, jobID2, poolPos, secondsActive, jobID_pool, posInPoolStorage;
 
 	char *w="-w", *r="-r", *l="-l", *n="-n", *fifo_READ, *fifo_WRITE, *path, *split, *split2, *split3, **next;
 	char buf[buf_SIZE], copyBuf[buf_SIZE], copyBuf2[buf_SIZE], copyBuf_pool[buf_SIZE], message[buf_SIZE],
-			messageToCoord[buf_SIZE], messageFromPool[buf_SIZE], messageFromConsole[buf_SIZE], messageFromCoord[buf_SIZE],
-				poolName_in[15], poolName_out[15], dirName[50], jobPath[100], poolBuf[buf_SIZE], buf_reply[3], buf_OK[] = "OK", buf_PRINTEND[] = "PRINTEND";
+			messageToCoord[buf_SIZE], messageFromPool[buf_SIZE], messageFromConsole[buf_SIZE], messageFromCoord[buf_SIZE], messageToPool[buf_SIZE], messageToConsole[buf_SIZE],
+				poolName_in[15], poolName_out[15], dirName[50], jobPath[100], poolBuf[buf_SIZE], buf_reply[3], buf_OK[] = "OK", buf_PRINTEND[] = "PRINTEND", buf_DONE[] = "DONE";
 
 	poolInfo *coordStorageArray;
 	jobInfo *poolStorageArray;
@@ -33,10 +33,14 @@ int main(int argc, char const *argv[])
 	memset(buf, 0, buf_SIZE);
 	memset(copyBuf, 0, buf_SIZE);
 	memset(copyBuf_pool, 0, buf_SIZE);
-	memset(messageToCoord, 0, buf_SIZE); //einai tou pool
+	
 	memset(messageFromPool, 0, buf_SIZE); //einai tou coord
+	memset(messageToPool, 0, buf_SIZE);
 	memset(messageFromConsole, 0, buf_SIZE); //einai tou coord
+	memset(messageToConsole, 0, buf_SIZE); //einai tou coord
 	memset(messageFromCoord, 0, buf_SIZE); //einai tou pool
+	memset(messageToCoord, 0, buf_SIZE); //einai tou pool
+	
 
 	if(argc == 9)
 	{
@@ -79,7 +83,7 @@ int main(int argc, char const *argv[])
 		}
 	}
 	nextAvailablePos = 0;
-	size = 10;
+	size = 2;
 	coordStorageArray = malloc(size * sizeof(poolInfo));
 	
 	/* ________FIFO CREATION________ */
@@ -213,9 +217,21 @@ int main(int argc, char const *argv[])
 
 						if(nextAvailablePos >= size)
 						{
-							printf("realloc\n");
+							printf("realloc...\n");
+							oldSize = size;
 							size = 2*size;
-							coordStorageArray = realloc(coordStorageArray, size);
+							coordStorageArray = realloc(coordStorageArray, size * sizeof(poolInfo));
+
+							/* initilization to the new half of the array */
+							for(i=oldSize; i<size; i++)
+							{
+								coordStorageArray[nextAvailablePos].pool_PID = -1;
+								coordStorageArray[nextAvailablePos].pool_NUM = -1;
+								coordStorageArray[nextAvailablePos].pool_STATUS = -1;
+								coordStorageArray[nextAvailablePos].in = -1;
+								coordStorageArray[nextAvailablePos].out = -1;
+								
+							}
 						}
 						coordStorageArray[nextAvailablePos].pool_PID = pid;
 						coordStorageArray[nextAvailablePos].pool_NUM = poolCounter;
@@ -224,6 +240,7 @@ int main(int argc, char const *argv[])
 						coordStorageArray[nextAvailablePos].out = tempWriteFd_coord;
 						coordStorageArray[nextAvailablePos].jobInfoArray = malloc(maxJobsInPool * sizeof(jobInfo));
 						coordStorageArray[nextAvailablePos].nextAvailablePos = 0;
+						
 						nextAvailablePos++;
 
 					
@@ -289,7 +306,7 @@ int main(int argc, char const *argv[])
 							if( (bytesRead = read(tempReadFd_pool, poolBuf, buf_SIZE)) > 0)
 							{
 								//write(tempWriteFd_pool, buf_OK, 3);		//pes ston coord oti diavastike
-
+								printf("%d poolBuf: %s\n", poolCounter, poolBuf);
 								strcpy(copyBuf_pool, poolBuf);
 								split2 = strtok(copyBuf_pool, " \n");
 								if(strcmp(split2, SUBMIT) == 0)
@@ -315,6 +332,7 @@ int main(int argc, char const *argv[])
 
 									//printf("sleeping for 1 second...\n");
 									//sleep(4);
+
 
 									pid = fork();
 									if(pid > 0) 	//pool (father)
@@ -376,6 +394,73 @@ int main(int argc, char const *argv[])
 								}
 								else if(strcmp(split2, STATUS) == 0)
 								{
+									split2 = strtok(NULL, " \n");
+									jobID_pool = atoi(split2);
+									posInPoolStorage = (jobID_pool-1) - ( maxJobsInPool* ((jobID_pool-1)/maxJobsInPool)); 
+									if(poolStorageArray[posInPoolStorage].job_STATUS == 0)
+									{
+										currentTime = time(NULL);
+										myTime = *localtime(&currentTime);
+										secondsActive = ( (myTime.tm_hour*3600) + (myTime.tm_min*60) + myTime.tm_sec ) - poolStorageArray[jobID_pool-1].startTimeInSeconds;
+										sprintf(messageToCoord, "JobID %d Status: Active (running for %d seconds)", poolStorageArray[posInPoolStorage].job_NUM, secondsActive);
+										write(tempWriteFd_pool, messageToCoord, buf_SIZE);
+										while(1)
+										{
+											//printf("before messageFromCoord\n");
+											if(read(tempReadFd_pool, messageFromCoord, buf_SIZE) > 0)
+											{
+												printf("messageFromCoord (status): %s\n", messageFromCoord);
+												//sleep(5);
+												if(strcmp(messageFromCoord, "OK") == 0)
+													break;
+												else
+												{
+													printf("ERROR: 1\n");
+													memset(messageFromCoord, 0, buf_SIZE);
+												}
+											}
+										}
+										write(tempWriteFd_pool, buf_DONE, 5);
+									}
+									else if(poolStorageArray[posInPoolStorage].job_STATUS == 1)
+									{
+										sprintf(messageToCoord, "JobID %d Status: Finished", poolStorageArray[posInPoolStorage].job_NUM);
+										write(tempWriteFd_pool, messageToCoord, buf_SIZE);
+										while(1)
+										{
+											if(read(tempReadFd_pool, messageFromCoord, buf_SIZE) > 0)
+											{
+												if(strcmp(messageFromCoord, "OK") == 0)
+													break;
+												else
+												{
+													printf("ERROR: 2\n");
+													memset(messageFromCoord, 0, buf_SIZE);
+												}
+											}
+										}
+										write(tempWriteFd_pool, buf_DONE, 5);
+									}
+									else if(poolStorageArray[posInPoolStorage].job_STATUS == 2)
+									{
+										sprintf(messageToCoord, "JobID %d Status: Suspended", poolStorageArray[posInPoolStorage].job_NUM);
+										write(tempWriteFd_pool, messageToCoord, buf_SIZE);
+										while(1)
+										{
+											if(read(tempReadFd_pool, messageFromCoord, buf_SIZE) > 0)
+											{
+												if(strcmp(messageFromCoord, "OK") == 0)
+													break;
+												else
+												{
+													printf("ERROR: 3\n");
+													memset(messageFromCoord, 0, buf_SIZE);
+												}
+											}
+										}
+										write(tempWriteFd_pool, buf_DONE, 5);
+									}
+									memset(messageFromCoord, 0, buf_SIZE);
 
 								}
 	 
@@ -456,14 +541,18 @@ int main(int argc, char const *argv[])
 											printf("(pool) Time to exit.\n");
 											break;
 										}
+										else
+											memset(messageFromCoord, 0, buf_SIZE);
 									}
 								}
-
+								for(i=0; i<nextAvailablePos; i++)
+									free(coordStorageArray[i].jobInfoArray);
+								free(coordStorageArray);
+								
 								free(poolStorageArray);
 								free(fifo_READ);
 								free(fifo_WRITE);
 								free(path);
-								free(coordStorageArray);
 								close(tempReadFd_pool);
 								close(tempWriteFd_pool);
 								exit(EXIT_SUCCESS);
@@ -481,7 +570,123 @@ int main(int argc, char const *argv[])
 			}
 			else if(strcmp(split, STATUS) == 0)
 			{
+				split = strtok(NULL, " \n");
+				jobID2 = atoi(split);
+				poolPos = (jobID2 - 1) / maxJobsInPool;	//position in the coordStorageArray
 
+				//prota apo ola koita an exei idi termatisei to pool sto opoio anikei to job
+				if(coordStorageArray[poolPos].pool_STATUS == 1)
+				{
+					sprintf(messageToConsole, "JobID %d Status: Finished", jobID2);
+					write(writefd, messageToConsole, buf_SIZE);
+					while(1)
+					{
+						if(read(readfd, messageFromConsole, buf_SIZE) > 0)	//perimenei to OK tou console oti diavastike
+						{
+							if(strcmp(messageFromConsole, "OK") == 0)
+								break;
+						}
+					}
+					write(writefd, buf_PRINTEND, 9);	//write ston console to PRINTEND gia na stamatisei na perimenei kai alla prints
+					memset(messageToConsole, 0, buf_SIZE);
+					memset(messageFromConsole, 0, buf_SIZE);
+					memset(copyBuf, 0, buf_SIZE);
+				}
+				else
+				{
+					write(coordStorageArray[poolPos].out, copyBuf, buf_SIZE);	//write sto katallilo pool
+					while(1)
+					{
+						if(read(coordStorageArray[poolPos].in, messageFromPool, buf_SIZE) > 0)	//an diavaseis minima apo to pool
+						{
+							printf("(line 585) Coord diavase apo pool minima: %s\n", messageFromPool);
+							//sleep(5);
+							if(strchr(messageFromPool, '_')) 	//tote einai minima termatismou
+							{
+								write(coordStorageArray[poolPos].out, buf_OK, 3);	//dose tin adeia stin pool na termatisei
+								printf("(coord A) Termination Info. Reading from pool%d\n", poolPos+1);
+								//efoson mpikame edo simainei oti to pool exei xtipisei exit() i tha xtipisei para poli sidoma, ara...
+								while(1)
+								{
+									if(waitpid(coordStorageArray[poolPos].pool_PID, &status, WNOHANG) > 0)
+									{
+										coordStorageArray[poolPos].pool_STATUS = 1; 	//0:active, 1:finished
+										printf("(coord A) pool%d (%d) has finished\n", coordStorageArray[poolPos].pool_NUM, coordStorageArray[poolPos].pool_PID);
+											
+										close(coordStorageArray[poolPos].in);
+										close(coordStorageArray[poolPos].out);
+										break;
+									}
+								}
+
+								split2 = strtok(messageFromPool, "_\n");
+								split2 = strtok(NULL, "_\n");
+
+								j = 0;
+								while(split2) //i while(j < maxJobsInPool)
+								{ 
+									coordStorageArray[poolPos].jobInfoArray[j].job_PID = atoi(split2);
+									split2 = strtok(NULL, "_\n");
+									coordStorageArray[poolPos].jobInfoArray[j].job_NUM = atoi(split2);
+									split2 = strtok(NULL, "_\n");
+									coordStorageArray[poolPos].jobInfoArray[j].job_STATUS = atoi(split2); //prepei na einai 1:finished
+									split2 = strtok(NULL, "_\n");
+									coordStorageArray[poolPos].jobInfoArray[j].startTimeInSeconds = atoi(split2);
+
+									coordStorageArray[poolPos].nextAvailablePos++;
+									split2 = strtok(NULL, "_\n");
+									j++;
+								}
+								sprintf(messageToConsole, "JobID %d Status: Finished", jobID2);
+								write(writefd, messageToConsole, buf_SIZE);
+								while(1)
+								{
+									if(read(readfd, messageFromConsole, buf_SIZE) > 0)	//perimenei to OK tou console oti diavastike
+									{
+										if(strcmp(messageFromConsole, "OK") == 0)
+											break;
+									}
+								}
+								write(writefd, buf_PRINTEND, 9);
+								memset(messageToConsole, 0, buf_SIZE);
+								memset(messageFromConsole, 0, buf_SIZE);
+								break;
+							}
+							else //aplo minima ektiposis
+							{
+								if(strcmp(messageFromPool, "DONE") != 0)
+								{
+									write(coordStorageArray[poolPos].out, buf_OK, 3);
+									write(writefd, messageFromPool, buf_SIZE);
+									while(1)
+									{
+										if(read(readfd, messageFromConsole, buf_SIZE) > 0)
+										{
+											if(strcmp(messageFromConsole, "OK") == 0)
+												break;
+										}
+									}
+							    }
+								else
+									break;
+
+								memset(messageFromPool, 0, buf_SIZE);
+									//}
+									
+								//}
+								write(writefd, buf_PRINTEND, 9);
+								memset(messageFromPool, 0, buf_SIZE);
+								memset(messageFromConsole, 0, buf_SIZE);
+								//break;	
+							}
+						}
+						memset(messageFromPool, 0, buf_SIZE);
+					}
+
+					memset(buf, 0, buf_SIZE);
+					memset(copyBuf, 0, buf_SIZE);
+					
+				}
 			}
 			else if(strcmp(split, STATUSALL) == 0)
 			{
@@ -547,14 +752,14 @@ int main(int argc, char const *argv[])
 					if(strcmp(split3, "I") == 0)	//plirofories termatismou pool
 					{
 						write(coordStorageArray[i].out, buf_OK, 3);	//dose tin adeia stin pool na termatisei
-						printf("(coord) Termination Info. Reading from pool%d\n", i+1);
+						printf("(coord B) Termination Info. Reading from pool%d\n", i+1);
 						//efoson mpikame edo simainei oti to pool exei xtipisei exit() i tha xtipisei para poli sidoma, ara...
 						while(1)
 						{
 							if(waitpid(coordStorageArray[i].pool_PID, &status, WNOHANG) > 0)
 							{
 								coordStorageArray[i].pool_STATUS = 1; 	//0:active, 1:finished
-								printf("(coord) pool%d (%d) has finished\n", coordStorageArray[i].pool_NUM, coordStorageArray[i].pool_PID);
+								printf("(coord B) pool%d (%d) has finished\n", coordStorageArray[i].pool_NUM, coordStorageArray[i].pool_PID);
 									
 								close(coordStorageArray[i].in);
 								close(coordStorageArray[i].out);
@@ -580,21 +785,31 @@ int main(int argc, char const *argv[])
 						}
 						//coordStorageArray[i].pool_STATUS = 1; 
 						memset(copyBuf2, 0, buf_SIZE);
-					}
-					else 	//aplo minima ektiposis
-					{
-						printf("(coord) Just a message. Reading from pool%d\n", i+1);
-						write(writefd, buf, buf_SIZE);
 						/*
-						while(1)
+						if(poolCounter == 3)
 						{
-							if( (read(readfd, buf_reply, 3)) > 0)
+							for(i=0; i<3; i++)
 							{
-								memset(buf_reply, 0, 3);
-								break;
+								printf("coordStorageArray[%d]\n", i);
+								printf("	pool_PID: %d\n", coordStorageArray[i].pool_PID);
+								printf("	pool_NUM: %d\n", coordStorageArray[i].pool_NUM);
+								printf("	pool_STATUS: %d\n", coordStorageArray[i].pool_STATUS);
+								printf("	nextAvailablePos: %d\n", coordStorageArray[i].nextAvailablePos);
+								for(j=0; j<coordStorageArray[i].nextAvailablePos; j++ )
+								{
+									printf("*************************************\n");
+									printf("		job_PID: %d\n", coordStorageArray[i].jobInfoArray[j].job_PID);
+									printf("		job_NUM: %d\n", coordStorageArray[i].jobInfoArray[j].job_NUM);
+									printf("		job_STATUS: %d\n", coordStorageArray[i].jobInfoArray[j].job_STATUS);
+									printf("		startTimeInSeconds: %d\n", coordStorageArray[i].jobInfoArray[j].startTimeInSeconds);
+								}
 							}
-						}
-						*/
+						}*/
+					}
+					else 	//aplo minima ektiposis - denprepei kan na einai edo. gia error check mono!
+					{
+						printf("(coord) Just a message: %s\n", buf);
+						write(writefd, buf, buf_SIZE);
 					}
 					
 					memset(buf, 0, buf_SIZE);
@@ -602,25 +817,6 @@ int main(int argc, char const *argv[])
 				}
 			}
 		}
-
-		/* elegxos an termatise kapoio pool */
-		/*
-		for(i=0; i<nextAvailablePos; i++)
-		{
-			if(coordStorageArray[i].pool_STATUS == 0)	//if pool is active
-			{
-				//printf("(coord -> pool) i: %d\n", i);
-				if(waitpid(coordStorageArray[i].pool_PID, &status, WNOHANG) > 0)	//tote auto to paidi-pool termatise
-				{
-					coordStorageArray[i].pool_STATUS = 1;
-					printf("pool%d (%d) has finished\n", coordStorageArray[i].pool_NUM, coordStorageArray[i].pool_PID);
-						
-					close(coordStorageArray[i].in);
-					close(coordStorageArray[i].out);
-				}
-			}
-		}*/
-		
 	}
 	printf("sleeping...\n");
 	sleep(20);
