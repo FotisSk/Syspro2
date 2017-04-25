@@ -12,7 +12,7 @@
 int main(int argc, char const *argv[])
 {
 	int i, a=0, b=0, c=0, readfd, writefd, n, bytesRead;
-	char fileBuf[fileBuf_SIZE], userBuf[userBuf_SIZE], messageFromCoord[buf_SIZE];
+	char fileBuf[fileBuf_SIZE], userBuf[userBuf_SIZE], messageFromCoord[buf_SIZE], buf_OK[] = "OK";
 	char *w="-w", *r="-r", *o="-o", *fifo_READ, *fifo_WRITE, *fileName;
 	FILE *fp;
 
@@ -87,9 +87,19 @@ int main(int argc, char const *argv[])
 			{
 				if( (bytesRead = read(readfd, messageFromCoord, buf_SIZE)) > 0)
 				{
-					printf("%s\n", messageFromCoord);
-					memset(messageFromCoord, 0, buf_SIZE);
-					break;
+					//write(writefd, buf_OK, 3);
+					if(strcmp(messageFromCoord, "PRINTEND") == 0)
+					{
+						memset(messageFromCoord, 0, buf_SIZE);
+						break;
+					}
+					else
+					{
+						write(writefd, buf_OK, 3);
+						printf("%s\n", messageFromCoord);
+						memset(messageFromCoord, 0, buf_SIZE);
+						//break;
+					}
 				}
 			}
 

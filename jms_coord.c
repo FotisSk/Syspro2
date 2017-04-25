@@ -19,7 +19,10 @@ int main(int argc, char const *argv[])
 		 tempWriteFd_pool, jobPID, stderrToFile, stdoutToFile, finishedJobs;
 
 	char *w="-w", *r="-r", *l="-l", *n="-n", *fifo_READ, *fifo_WRITE, *path, *split, *split2, *split3, **next;
-	char buf[buf_SIZE], copyBuf[buf_SIZE], copyBuf2[buf_SIZE], copyBuf_pool[buf_SIZE], message[buf_SIZE], messageToCoord[buf_SIZE], poolName_in[15], poolName_out[15], dirName[50], jobPath[100], poolBuf[buf_SIZE], buf_reply[3], buf_OK[] = "OK";
+	char buf[buf_SIZE], copyBuf[buf_SIZE], copyBuf2[buf_SIZE], copyBuf_pool[buf_SIZE], message[buf_SIZE],
+			messageToCoord[buf_SIZE], messageFromPool[buf_SIZE], messageFromConsole[buf_SIZE], messageFromCoord[buf_SIZE],
+				poolName_in[15], poolName_out[15], dirName[50], jobPath[100], poolBuf[buf_SIZE], buf_reply[3], buf_OK[] = "OK", buf_PRINTEND[] = "PRINTEND";
+
 	poolInfo *coordStorageArray;
 	jobInfo *poolStorageArray;
 	pid_t pid, retVal;
@@ -27,12 +30,13 @@ int main(int argc, char const *argv[])
 	time_t currentTime;
 	struct tm myTime;
 
-	fdmode = (S_IRUSR, S_IWUSR, S_IRGRP, S_IROTH);
-
 	memset(buf, 0, buf_SIZE);
 	memset(copyBuf, 0, buf_SIZE);
 	memset(copyBuf_pool, 0, buf_SIZE);
-	memset(messageToCoord, 0, buf_SIZE);
+	memset(messageToCoord, 0, buf_SIZE); //einai tou pool
+	memset(messageFromPool, 0, buf_SIZE); //einai tou coord
+	memset(messageFromConsole, 0, buf_SIZE); //einai tou coord
+	memset(messageFromCoord, 0, buf_SIZE); //einai tou pool
 
 	if(argc == 9)
 	{
@@ -118,8 +122,6 @@ int main(int argc, char const *argv[])
 
 
 
-
-
 	while(1)
 	{	
 		if( (bytesRead = read(readfd, buf, buf_SIZE)) > 0)
@@ -139,12 +141,24 @@ int main(int argc, char const *argv[])
 				if(poolCounter*maxJobsInPool >= jobCounter)	//de xreiazetai neo pool
 				{
 					poolNum = (jobCounter-1) / maxJobsInPool;	//poolNum einai to pos ston pinaka me ta poolInfo
-					write(coordStorageArray[poolNum].out, copyBuf, buf_SIZE);
+					write(coordStorageArray[poolNum].out, copyBuf, buf_SIZE);	//grafo sto pool tin entoli (submit)
 					while(1)
 					{
-						if( (bytesRead = read(coordStorageArray[poolNum].in, buf_reply, 3)) > 0)
+						if( (bytesRead = read(coordStorageArray[poolNum].in, messageFromPool, buf_SIZE)) > 0)	//perimenei message apo to pool
 						{
-							memset(buf_reply, 0, 3);
+							
+							write(writefd, messageFromPool, buf_SIZE);
+							while(1)
+							{
+								if(read(readfd, messageFromConsole, buf_SIZE) > 0)
+								{
+									if(strcmp(messageFromConsole, "OK") == 0)
+										break;
+								}
+							}
+							write(writefd, buf_PRINTEND, 9);
+							memset(messageFromPool, 0, buf_SIZE);
+							memset(messageFromConsole, 0, buf_SIZE);
 							break;
 						}
 					}
@@ -216,13 +230,24 @@ int main(int argc, char const *argv[])
 						write(tempWriteFd_coord, copyBuf, buf_SIZE);
 						while(1)
 						{
-							if( (bytesRead = read(tempReadFd_coord, buf_reply, 3)) > 0)
+							if( (bytesRead = read(tempReadFd_coord, messageFromPool, buf_SIZE)) > 0)	//perimenei message apo to pool
 							{
-								memset(buf_reply, 0, 3);
+								
+								write(writefd, messageFromPool, buf_SIZE);	//write ston console to message
+								while(1)
+								{
+									if(read(readfd, messageFromConsole, buf_SIZE) > 0)	//perimenei to OK tou console oti diavastike
+									{
+										if(strcmp(messageFromConsole, "OK") == 0)
+											break;
+									}
+								}
+								write(writefd, buf_PRINTEND, 9);	//write ston console to PRINTEND gia na stamatisei na perimenei kai alla prints
+								memset(messageFromPool, 0, buf_SIZE);
+								memset(messageFromConsole, 0, buf_SIZE);
 								break;
 							}
 						}
-
 						memset(buf, 0, buf_SIZE);
 						memset(copyBuf, 0, buf_SIZE);
 						memset(poolName_in, 0, 15);
@@ -263,7 +288,7 @@ int main(int argc, char const *argv[])
 						{
 							if( (bytesRead = read(tempReadFd_pool, poolBuf, buf_SIZE)) > 0)
 							{
-								write(tempWriteFd_pool, buf_OK, 3);		//pes ston coord oti diavastike
+								//write(tempWriteFd_pool, buf_OK, 3);		//pes ston coord oti diavastike
 
 								strcpy(copyBuf_pool, poolBuf);
 								split2 = strtok(copyBuf_pool, " \n");
@@ -348,7 +373,11 @@ int main(int argc, char const *argv[])
 										perror("(pool) could not fork");
 										exit(EXIT_FAILURE);
 									}
-								}//end_if
+								}
+								else if(strcmp(split2, STATUS) == 0)
+								{
+
+								}
 	 
 							}
 							else if(bytesRead == 0)		//eof
@@ -416,6 +445,19 @@ int main(int argc, char const *argv[])
 								
 								printf("(pool) %s\n", messageToCoord);
 								write(tempWriteFd_pool, messageToCoord, buf_SIZE);
+
+								//perimenei ton coord na tou dosei to ok gia na kanei exit
+								while(1)
+								{
+									if(read(tempReadFd_pool, messageFromCoord, buf_SIZE) > 0)
+									{
+										if(strcmp(messageFromCoord, "OK") == 0)
+										{
+											printf("(pool) Time to exit.\n");
+											break;
+										}
+									}
+								}
 
 								free(poolStorageArray);
 								free(fifo_READ);
@@ -504,6 +546,7 @@ int main(int argc, char const *argv[])
 					split3 = strtok(copyBuf2, "_\n");
 					if(strcmp(split3, "I") == 0)	//plirofories termatismou pool
 					{
+						write(coordStorageArray[i].out, buf_OK, 3);	//dose tin adeia stin pool na termatisei
 						printf("(coord) Termination Info. Reading from pool%d\n", i+1);
 						//efoson mpikame edo simainei oti to pool exei xtipisei exit() i tha xtipisei para poli sidoma, ara...
 						while(1)
