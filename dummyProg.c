@@ -4,6 +4,6 @@
 int main()
 {
 	printf("This is a dummy program :D\n");
-	sleep(3);
+	sleep(1);
 	return 0;
 }
