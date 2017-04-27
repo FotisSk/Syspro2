@@ -408,6 +408,15 @@ int main(int argc, char const *argv[])
 										if ( execvp(arguments[0], arguments) == -1 )
 										{
 											perror("failure to exec: ");
+											for(i=0; i<nextAvailablePos; i++)
+												free(coordStorageArray[i].jobInfoArray);
+											free(coordStorageArray);
+											
+											free(poolStorageArray);
+											free(fifo_READ);
+											free(fifo_WRITE);
+											free(path);
+											exit(EXIT_FAILURE);
 										}
 
 									}
