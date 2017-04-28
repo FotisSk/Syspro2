@@ -15,7 +15,7 @@
 
 void showactive_coord(int readfd, int writefd, char *buffer, poolInfo *coordStorageArray, int numOfPools)
 {
-	int status, i, j, k, l;
+	int status, i, j;
 	char messageFromConsole[buf_SIZE], messageToConsole[buf_SIZE], messageFromPool[buf_SIZE];
 	char buf_PRINTEND[] = "PRINTEND", buf_OK[] = "OK";
 	char *split;
@@ -23,7 +23,6 @@ void showactive_coord(int readfd, int writefd, char *buffer, poolInfo *coordStor
 	memset(messageFromConsole, 0, buf_SIZE);
 	memset(messageToConsole, 0, buf_SIZE);
 	memset(messageFromPool, 0, buf_SIZE);
-
 
 	for(i=0; i<numOfPools; i++)	//gia kathe ena apo ta iparxonta pools
 	{
