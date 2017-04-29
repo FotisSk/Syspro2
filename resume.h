@@ -2,6 +2,6 @@
 #define RESUME__H__
 
 void resume_coord(int , int , char* , poolInfo* , int, int );
-void resume_pool(int , int , jobInfo *, int , int );
+int resume_pool(int , int , jobInfo *, int , int );
 
 #endif

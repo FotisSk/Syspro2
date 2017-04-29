@@ -111,10 +111,14 @@ void showpools_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray
 	pool_PID = getpid();
 
 	jobsBeingExecuted = 0;
+	printf("nextAvailablePos_pool: %d\n", nextAvailablePos_pool);
 	for(i=0; i<nextAvailablePos_pool; i++)
 	{
 		if( (poolStorageArray[i].job_STATUS == 0) || (poolStorageArray[i].job_STATUS == 2) )	//0:active, 1:finished, 2:suspended (theoro os 'ipo ektelesi' tis active kai suspended)
+		{
+			printf("poolStorageArray[%d].job_STATUS: %d\n", i, poolStorageArray[i].job_STATUS);
 			jobsBeingExecuted++;
+		}
 	}
 	sprintf(messageToCoord, "%d %d", pool_PID, jobsBeingExecuted);
 	write(writefd_pool, messageToCoord, buf_SIZE);

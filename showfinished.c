@@ -150,9 +150,13 @@ void showfinished_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageAr
 
 	memset(messageToCoord, 0, buf_SIZE);
 	memset(messageFromCoord, 0, buf_SIZE);
-
+	printf("nextAvailablePos_pool: %d\n", nextAvailablePos_pool);
 	for(i=0; i<nextAvailablePos_pool; i++)
 	{
+		printf("i: %d\n", i);
+		printf("poolStorageArray[%d].job_STATUS: %d\n", i, poolStorageArray[i].job_STATUS );
+		printf("poolStorageArray[%d].job_PID: %d\n", i, poolStorageArray[i].job_PID );
+		printf("poolStorageArray[%d].job_NUM: %d\n", i, poolStorageArray[i].job_NUM );
 		if(poolStorageArray[i].job_STATUS == 1)
 		{
 			sprintf(messageToCoord, "JobID %d Status: Finished", poolStorageArray[i].job_NUM);

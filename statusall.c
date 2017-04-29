@@ -161,8 +161,12 @@ void statusall_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray
 	{
 		if(poolStorageArray[i].job_STATUS == 0)
 		{
-			secondsActive = ( (myTime.tm_hour*3600) + (myTime.tm_min*60) + myTime.tm_sec ) - poolStorageArray[i].startTimeInSeconds;
-			if(secondsActive <= timeDuration)
+			if(poolStorageArray[i].stop == -1) 	//an den exoun iparksei paremvoles sti leitourgia tou job
+				secondsActive = ( (myTime.tm_hour*3600) + (myTime.tm_min*60) + myTime.tm_sec ) - poolStorageArray[i].startTimeInSeconds; // = now - startTimeInSeconds
+			else //allios an exoun iparksei
+				secondsActive = poolStorageArray[i].timeActive + ( ((myTime.tm_hour*3600) + (myTime.tm_min*60) + myTime.tm_sec ) - poolStorageArray[i].cont ); // = timeActive + (now-cont)
+
+			if( poolStorageArray[i].startTimeInSeconds >= (((myTime.tm_hour*3600) + (myTime.tm_min*60) + myTime.tm_sec) - timeDuration) )
 			{
 				sprintf(messageToCoord, "JobID %d Status: Active (running for %d seconds)", poolStorageArray[i].job_NUM, secondsActive);
 				write(writefd_pool, messageToCoord, buf_SIZE);
@@ -188,8 +192,8 @@ void statusall_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray
 		}
 		else if(poolStorageArray[i].job_STATUS == 1)
 		{
-			timeSinceSubmit = ( (myTime.tm_hour*3600) + (myTime.tm_min*60) + myTime.tm_sec ) - poolStorageArray[i].startTimeInSeconds;
-			if(timeSinceSubmit <= timeDuration)
+			//timeSinceSubmit = ( (myTime.tm_hour*3600) + (myTime.tm_min*60) + myTime.tm_sec ) - poolStorageArray[i].startTimeInSeconds;
+			if(poolStorageArray[i].startTimeInSeconds >= (((myTime.tm_hour*3600) + (myTime.tm_min*60) + myTime.tm_sec) - timeDuration))
 			{
 				sprintf(messageToCoord, "JobID %d Status: Finished", poolStorageArray[i].job_NUM);
 				write(writefd_pool, messageToCoord, buf_SIZE);
@@ -215,8 +219,8 @@ void statusall_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray
 		}
 		else if(poolStorageArray[i].job_STATUS == 2)
 		{
-			timeSinceSubmit = ( (myTime.tm_hour*3600) + (myTime.tm_min*60) + myTime.tm_sec ) - poolStorageArray[i].startTimeInSeconds;
-			if(timeSinceSubmit <= timeDuration)
+			//timeSinceSubmit = ( (myTime.tm_hour*3600) + (myTime.tm_min*60) + myTime.tm_sec ) - poolStorageArray[i].startTimeInSeconds;
+			if(poolStorageArray[i].startTimeInSeconds >= (((myTime.tm_hour*3600) + (myTime.tm_min*60) + myTime.tm_sec) - timeDuration))
 			{
 				sprintf(messageToCoord, "JobID %d Status: Suspended", poolStorageArray[i].job_NUM);
 				write(writefd_pool, messageToCoord, buf_SIZE);

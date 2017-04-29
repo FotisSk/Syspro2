@@ -108,13 +108,30 @@ void suspend_coord(int readfd, int writefd, char *buffer, poolInfo *coordStorage
 				}
 			}
 			memset(messageFromPool, 0, buf_SIZE);
+		}	
+	}
+	else if(coordStorageArray[poolPos].pool_STATUS == 1)
+	{
+		sprintf(messageToConsole, "suspend failed: Job %d is finished (Pool %d is finished)", jobID, poolPos+1);
+		write(writefd, messageToConsole, buf_SIZE);
+		while(1)
+		{
+			if(read(readfd, messageFromConsole, buf_SIZE) > 0)
+			{
+				if(strcmp(messageFromConsole, "OK") == 0)
+				{
+					memset(messageFromConsole, 0, buf_SIZE);
+					break;
+				}
+			}
 		}
-		
+		write(writefd, buf_PRINTEND, 9);
 	}
 }
 
-void suspend_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, int jobID_pool, int posInPoolStorage)
+int suspend_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, int jobID_pool, int posInPoolStorage)
 {
+	int status;
 	char messageFromCoord[buf_SIZE], messageToCoord[buf_SIZE];
 	char buf_DONE[] = "DONE";
 	time_t currentTime;
@@ -126,10 +143,50 @@ void suspend_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, 
 	if(poolStorageArray[posInPoolStorage].job_STATUS == 0)
 	{
 		kill(poolStorageArray[posInPoolStorage].job_PID, SIGSTOP);
-		sleep(1);
+		while(1)
+		{
+			if( waitpid(poolStorageArray[posInPoolStorage].job_PID, &status, WNOHANG | WUNTRACED) > 0)
+			{
+				if( WIFSTOPPED(status) )	//stopped by a signal(can be continued)
+				{
+					poolStorageArray[posInPoolStorage].job_STATUS = 2;
+					printf("(pool) job%d (%d): suspended\n", poolStorageArray[posInPoolStorage].job_NUM, poolStorageArray[posInPoolStorage].job_PID);
+					break;
+				}
+				else if( WIFEXITED(status) )	//terminated normally
+				{
+					//finishedJobs++;
+					poolStorageArray[posInPoolStorage].job_STATUS = 1;
+					printf("(pool) job%d (%d): finished (normally) in suspend\n", poolStorageArray[posInPoolStorage].job_NUM, poolStorageArray[posInPoolStorage].job_PID);
+					sprintf(messageToCoord, "suspend failed: job%d (%d) is finished", poolStorageArray[posInPoolStorage].job_NUM, poolStorageArray[posInPoolStorage].job_PID);
+					write(writefd_pool, messageToCoord, buf_SIZE);
+					while(1)
+					{
+						if(read(readfd_pool, messageFromCoord, buf_SIZE) > 0)
+						{
+							printf("messageFromCoord (status): %s\n", messageFromCoord);
+							if(strcmp(messageFromCoord, "OK") == 0)
+								break;
+							else
+							{
+								printf("ERROR: 1\n");
+								//memset(messageFromCoord, 0, buf_SIZE);
+							}
+						}
+					}
+					write(writefd_pool, buf_DONE, 5);
+					return 1;
+				}
+			}
+		}
+		
 		currentTime = time(NULL);
 		myTime = *localtime(&currentTime);
+		poolStorageArray[posInPoolStorage].stop = (myTime.tm_hour*3600) + (myTime.tm_min*60) + myTime.tm_sec; //i ora pou egine stop
+		poolStorageArray[posInPoolStorage].timeActive = poolStorageArray[posInPoolStorage].timeActive + (poolStorageArray[posInPoolStorage].stop - poolStorageArray[posInPoolStorage].cont); //timeActive otan egine to stop 
+
 		sprintf(messageToCoord, "Sent suspend signal to JobID  %d", poolStorageArray[posInPoolStorage].job_NUM);
+		printf("timeActive: %d\n", poolStorageArray[posInPoolStorage].timeActive);
 		write(writefd_pool, messageToCoord, buf_SIZE);
 		while(1)
 		{
@@ -146,7 +203,7 @@ void suspend_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, 
 			}
 		}
 		write(writefd_pool, buf_DONE, 5);
-		return;
+		return 0;
 	}
 	else if(poolStorageArray[posInPoolStorage].job_STATUS == 1)
 	{
@@ -167,7 +224,7 @@ void suspend_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, 
 			}
 		}
 		write(writefd_pool, buf_DONE, 5);
-		return;
+		return 0;
 	}
 	else if(poolStorageArray[posInPoolStorage].job_STATUS == 2)
 	{
@@ -188,7 +245,7 @@ void suspend_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, 
 			}
 		}
 		write(writefd_pool, buf_DONE, 5);
-		return;
+		return 0;
 	}
 
 }

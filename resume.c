@@ -109,12 +109,29 @@ void resume_coord(int readfd, int writefd, char *buffer, poolInfo *coordStorageA
 			}
 			memset(messageFromPool, 0, buf_SIZE);
 		}
-		
+	}
+	else if(coordStorageArray[poolPos].pool_STATUS == 1)
+	{
+		sprintf(messageToConsole, "resume failed: Job %d is finished (Pool %d is finished)", jobID, poolPos+1);
+		write(writefd, messageToConsole, buf_SIZE);
+		while(1)
+		{
+			if(read(readfd, messageFromConsole, buf_SIZE) > 0)
+			{
+				if(strcmp(messageFromConsole, "OK") == 0)
+				{
+					memset(messageFromConsole, 0, buf_SIZE);
+					break;
+				}
+			}
+		}
+		write(writefd, buf_PRINTEND, 9);
 	}
 }
 
-void resume_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, int jobID_pool, int posInPoolStorage)
+int resume_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, int jobID_pool, int posInPoolStorage)
 {
+	int status;
 	char messageFromCoord[buf_SIZE], messageToCoord[buf_SIZE];
 	char buf_DONE[] = "DONE";
 	time_t currentTime;
@@ -126,9 +143,47 @@ void resume_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, i
 	if(poolStorageArray[posInPoolStorage].job_STATUS == 2)
 	{
 		kill(poolStorageArray[posInPoolStorage].job_PID, SIGCONT);
+		while(1)
+		{
+			if( waitpid(poolStorageArray[posInPoolStorage].job_PID, &status, WNOHANG | WUNTRACED | WCONTINUED) > 0)
+			{
+				if( WIFCONTINUED(status) )	//stopped by a signal(can be continued)
+				{
+					poolStorageArray[posInPoolStorage].job_STATUS = 0;
+					printf("(pool) job%d (%d): resumed\n", poolStorageArray[posInPoolStorage].job_NUM, poolStorageArray[posInPoolStorage].job_PID);
+					break;
+				}
+				else if( WIFEXITED(status) )	//terminated normally
+				{
+					//finishedJobs++;
+					poolStorageArray[posInPoolStorage].job_STATUS = 1;
+					printf("(pool) job%d (%d): finished (normally) in resume\n", poolStorageArray[posInPoolStorage].job_NUM, poolStorageArray[posInPoolStorage].job_PID);
+					sprintf(messageToCoord, "resume failed: job%d (%d) is finished", poolStorageArray[posInPoolStorage].job_NUM, poolStorageArray[posInPoolStorage].job_PID);
+					write(writefd_pool, messageToCoord, buf_SIZE);
+					while(1)
+					{
+						if(read(readfd_pool, messageFromCoord, buf_SIZE) > 0)
+						{
+							printf("messageFromCoord (status): %s\n", messageFromCoord);
+							if(strcmp(messageFromCoord, "OK") == 0)
+								break;
+							else
+							{
+								printf("ERROR: 1\n");
+								//memset(messageFromCoord, 0, buf_SIZE);
+							}
+						}
+					}
+					write(writefd_pool, buf_DONE, 5);
+					return 1;
+				}
+			}
+		}
 
 		currentTime = time(NULL);
 		myTime = *localtime(&currentTime);
+		poolStorageArray[posInPoolStorage].cont = (myTime.tm_hour*3600) + (myTime.tm_min*60) + myTime.tm_sec; //i ora pou egine cont
+
 		sprintf(messageToCoord, "Sent resume signal to JobID  %d", poolStorageArray[posInPoolStorage].job_NUM);
 		write(writefd_pool, messageToCoord, buf_SIZE);
 		while(1)
@@ -146,7 +201,7 @@ void resume_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, i
 			}
 		}
 		write(writefd_pool, buf_DONE, 5);
-		return;
+		return 0;
 	}
 	else if(poolStorageArray[posInPoolStorage].job_STATUS == 1)
 	{
@@ -167,7 +222,7 @@ void resume_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, i
 			}
 		}
 		write(writefd_pool, buf_DONE, 5);
-		return;
+		return 0;
 	}
 	else if(poolStorageArray[posInPoolStorage].job_STATUS == 0)
 	{
@@ -188,7 +243,7 @@ void resume_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, i
 			}
 		}
 		write(writefd_pool, buf_DONE, 5);
-		return;
+		return 0;
 	}
 
 }

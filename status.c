@@ -145,6 +145,12 @@ void status_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, i
 	{
 		currentTime = time(NULL);
 		myTime = *localtime(&currentTime);
+
+		if(poolStorageArray[posInPoolStorage].stop == -1) 	//an den exoun iparksei paremvoles sti leitourgia tou job
+			secondsActive = ( (myTime.tm_hour*3600) + (myTime.tm_min*60) + myTime.tm_sec ) - poolStorageArray[posInPoolStorage].startTimeInSeconds; // = now - startTimeInSeconds
+		else //allios an exoun iparksei
+			secondsActive = poolStorageArray[posInPoolStorage].timeActive + ( ((myTime.tm_hour*3600) + (myTime.tm_min*60) + myTime.tm_sec ) - poolStorageArray[posInPoolStorage].cont ); // = timeActive + (now-cont)
+
 		secondsActive = ( (myTime.tm_hour*3600) + (myTime.tm_min*60) + myTime.tm_sec ) - poolStorageArray[posInPoolStorage].startTimeInSeconds;
 		//printf("(status_pool) jobID_pool: %d, poolStorageArray[%d].startTimeInSeconds: %d\n", jobID_pool, posInPoolStorage, poolStorageArray[jobID_pool-1].startTimeInSeconds);
 		sprintf(messageToCoord, "JobID %d Status: Active (running for %d seconds)", poolStorageArray[posInPoolStorage].job_NUM, secondsActive);

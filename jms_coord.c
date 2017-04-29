@@ -3,6 +3,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/errno.h>
@@ -18,10 +19,18 @@
 #include "showpools.h"
 #include "suspend.h"
 #include "resume.h"
+#include "shutdown.h"
+
+int handlerFlag = 0;
+
+void myHandler(int signum)
+{
+	handlerFlag = 1;
+}
 
 int main(int argc, char const *argv[])
 {
-	int a=0, b=0, c=0, i, j, maxJobsInPool, readfd, writefd, bytesRead, status, exit_status, jobCounter, oldSize, timeDuration,
+	int a=0, b=0, c=0, i, j, maxJobsInPool, readfd, writefd, bytesRead, status, exit_status, jobCounter, oldSize, timeDuration, firstTime = 0,
 		poolCounter, jobID, nextAvailablePos, nextAvailablePos_pool, size, poolNum, tempReadFd_coord, tempWriteFd_coord, tempReadFd_pool,
 		 tempWriteFd_pool, jobPID, stderrToFile, stdoutToFile, finishedJobs, jobID2, poolPos, secondsActive, jobID_pool, posInPoolStorage, thisPoolPID;
 
@@ -279,6 +288,7 @@ int main(int argc, char const *argv[])
 					}
 					else if(pid == 0)	//pool (child)
 					{
+						signal(SIGTERM, myHandler);
 						/* OPEN FIFOs */
 						if( (tempReadFd_pool = open(poolName_out, O_RDONLY | O_NONBLOCK)) < 0)
 						{
@@ -299,6 +309,9 @@ int main(int argc, char const *argv[])
 							poolStorageArray[i].job_NUM = -1;
 							poolStorageArray[i].job_STATUS = -1;
 							poolStorageArray[i].startTimeInSeconds = -1;
+							poolStorageArray[i].stop = -1;
+							poolStorageArray[i].cont = -1;
+							poolStorageArray[i].timeActive = -1;
 						}
 						nextAvailablePos_pool = 0;
 
@@ -369,6 +382,9 @@ int main(int argc, char const *argv[])
 										poolStorageArray[nextAvailablePos_pool].job_NUM = jobID;
 										poolStorageArray[nextAvailablePos_pool].job_STATUS = 0;  			//status -> 0:active, 1:finished, 2:suspended
 										poolStorageArray[nextAvailablePos_pool].startTimeInSeconds = (myTime.tm_hour*3600) + (myTime.tm_min*60) + myTime.tm_sec;	//kratao tin ora pou ksekinise to job se seconds
+										poolStorageArray[nextAvailablePos_pool].stop = -1;
+										poolStorageArray[nextAvailablePos_pool].cont = poolStorageArray[nextAvailablePos_pool].startTimeInSeconds;
+										poolStorageArray[nextAvailablePos_pool].timeActive = 0;
 										nextAvailablePos_pool++;
 			
 										memset(messageToCoord, 0, buf_SIZE);
@@ -462,18 +478,16 @@ int main(int argc, char const *argv[])
 									split2 = strtok(NULL, " \n");
 									jobID_pool = atoi(split2);
 									posInPoolStorage = (jobID_pool-1) - ( maxJobsInPool* ((jobID_pool-1)/maxJobsInPool)); 
-									suspend_pool(tempReadFd_pool, tempWriteFd_pool, poolStorageArray, jobID_pool, posInPoolStorage);
+									if( suspend_pool(tempReadFd_pool, tempWriteFd_pool, poolStorageArray, jobID_pool, posInPoolStorage) == 1)
+										finishedJobs++;
 								}
 								else if(strcmp(split2, RESUME) == 0)
 								{
 									split2 = strtok(NULL, " \n");
 									jobID_pool = atoi(split2);
 									posInPoolStorage = (jobID_pool-1) - ( maxJobsInPool* ((jobID_pool-1)/maxJobsInPool)); 
-									resume_pool(tempReadFd_pool, tempWriteFd_pool, poolStorageArray, jobID_pool, posInPoolStorage);
-								}
-								else if(strcmp(split2, SHUTDOWN) == 0)
-								{
-
+									if(resume_pool(tempReadFd_pool, tempWriteFd_pool, poolStorageArray, jobID_pool, posInPoolStorage) == 1)
+										finishedJobs++;
 								}
 	 
 							}
@@ -489,13 +503,29 @@ int main(int argc, char const *argv[])
 
 							}
 
+							if(handlerFlag == 1 && firstTime == 0)
+							{
+								printf("pool%d entered the shutdown mode.\n", poolCounter);
+								firstTime = 1;
+								for(i=0; i<nextAvailablePos_pool; i++)
+								{
+									if(poolStorageArray[i].job_STATUS == 0 || poolStorageArray[i].job_STATUS == 2 ) 	//an einai active i suspended
+									{
+										if(kill(poolStorageArray[i].job_PID, SIGTERM) == -1)
+										{
+											perror("SIGTERM for job");
+										}
+									}
+								}
+							}
 							/* elegxos katastasis jobs */
 							for(i=0; i<nextAvailablePos_pool; i++)
 							{
 								//printf("(pool -> job) i: %d\n",i );
-								if( (poolStorageArray[i].job_STATUS == 0) )
+								if( (poolStorageArray[i].job_STATUS == 0) || (poolStorageArray[i].job_STATUS == 2) )
 								{
-									retVal = waitpid(poolStorageArray[i].job_PID, &status, WNOHANG | WUNTRACED | WCONTINUED);
+									retVal = waitpid(poolStorageArray[i].job_PID, &status, WNOHANG | WUNTRACED);
+									//printf("retVal: %d\n", retVal);
 									if(retVal > 0)	//tote auto to paidi-job termatise
 									{
 										if( WIFEXITED(status) )	//terminated normally
@@ -508,43 +538,9 @@ int main(int argc, char const *argv[])
 										{
 											finishedJobs++;
 											poolStorageArray[i].job_STATUS = 1;
-											printf("(pool) job%d (%d): finished (signal)\n", poolStorageArray[i].job_NUM, poolStorageArray[i].job_PID);
+											printf("(pool) job%d (%d): terminated (signal)\n", poolStorageArray[i].job_NUM, poolStorageArray[i].job_PID);
 										}
-										else if( WIFSTOPPED(status) )	//stopped by a signal(can be continued)
-										{
-											poolStorageArray[i].job_STATUS = 2;
-											printf("(pool) job%d (%d): suspended\n", poolStorageArray[i].job_NUM, poolStorageArray[i].job_PID);
-										}
-										/*
-										else if( WIFCONTINUED(status) )
-										{
-											poolStorageArray[i].job_STATUS = 0; //continued by a signal
-											printf("(pool) job%d (%d): continued\n", poolStorageArray[i].job_NUM, poolStorageArray[i].job_PID);
-										}*/
 										
-									}
-									else if(retVal == -1)
-									{
-										perror("(pool) waitpid failed");
-										exit(EXIT_FAILURE);
-									}
-								}
-								else if( (poolStorageArray[i].job_STATUS == 2) )
-								{
-									retVal = waitpid(poolStorageArray[i].job_PID, &status, WNOHANG | WUNTRACED | WCONTINUED);
-									if(retVal > 0)
-									{
-										if( WIFCONTINUED(status) )
-										{
-											poolStorageArray[i].job_STATUS = 0; //continued by a signal
-											printf("(pool) job%d (%d): continued\n", poolStorageArray[i].job_NUM, poolStorageArray[i].job_PID);
-										}
-										else if( WIFSIGNALED(status) )	//terminated by a signal
-										{
-											finishedJobs++;
-											poolStorageArray[i].job_STATUS = 1;
-											printf("(pool) job%d (%d): finished (signal)\n", poolStorageArray[i].job_NUM, poolStorageArray[i].job_PID);
-										}
 									}
 									else if(retVal == -1)
 									{
@@ -657,7 +653,7 @@ int main(int argc, char const *argv[])
 			}
 			else if(strcmp(split, SHUTDOWN) == 0)
 			{
-
+				shutdown_coord(readfd, writefd, coordStorageArray, poolCounter);
 			}
 			else
 			{
@@ -726,28 +722,7 @@ int main(int argc, char const *argv[])
 							split3 = strtok(NULL, "_\n");
 							j++;
 						}
-						//coordStorageArray[i].pool_STATUS = 1; 
 						memset(copyBuf2, 0, buf_SIZE);
-						/*
-						if(poolCounter == 3)
-						{
-							for(i=0; i<3; i++)
-							{
-								printf("coordStorageArray[%d]\n", i);
-								printf("	pool_PID: %d\n", coordStorageArray[i].pool_PID);
-								printf("	pool_NUM: %d\n", coordStorageArray[i].pool_NUM);
-								printf("	pool_STATUS: %d\n", coordStorageArray[i].pool_STATUS);
-								printf("	nextAvailablePos: %d\n", coordStorageArray[i].nextAvailablePos);
-								for(j=0; j<coordStorageArray[i].nextAvailablePos; j++ )
-								{
-									printf("*************************************\n");
-									printf("		job_PID: %d\n", coordStorageArray[i].jobInfoArray[j].job_PID);
-									printf("		job_NUM: %d\n", coordStorageArray[i].jobInfoArray[j].job_NUM);
-									printf("		job_STATUS: %d\n", coordStorageArray[i].jobInfoArray[j].job_STATUS);
-									printf("		startTimeInSeconds: %d\n", coordStorageArray[i].jobInfoArray[j].startTimeInSeconds);
-								}
-							}
-						}*/
 					}
 					else 	//aplo minima ektiposis - denprepei kan na einai edo. gia error check mono!
 					{
