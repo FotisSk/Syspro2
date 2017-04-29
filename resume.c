@@ -147,7 +147,7 @@ int resume_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, in
 		{
 			if( waitpid(poolStorageArray[posInPoolStorage].job_PID, &status, WNOHANG | WUNTRACED | WCONTINUED) > 0)
 			{
-				if( WIFCONTINUED(status) )	//stopped by a signal(can be continued)
+				if( WIFCONTINUED(status) )
 				{
 					poolStorageArray[posInPoolStorage].job_STATUS = 0;
 					printf("(pool) job%d (%d): resumed\n", poolStorageArray[posInPoolStorage].job_NUM, poolStorageArray[posInPoolStorage].job_PID);

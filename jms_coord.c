@@ -503,20 +503,26 @@ int main(int argc, char const *argv[])
 
 							}
 
-							if(handlerFlag == 1 && firstTime == 0)
+							/* SHUTDOWN */
+							if(handlerFlag == 1 && firstTime == 0)	//an exei dothei shutdown
 							{
 								printf("pool%d entered the shutdown mode.\n", poolCounter);
 								firstTime = 1;
-								for(i=0; i<nextAvailablePos_pool; i++)
-								{
-									if(poolStorageArray[i].job_STATUS == 0 || poolStorageArray[i].job_STATUS == 2 ) 	//an einai active i suspended
-									{
-										if(kill(poolStorageArray[i].job_PID, SIGTERM) == -1)
-										{
-											perror("SIGTERM for job");
-										}
-									}
-								}
+
+								shutdown_pool(tempReadFd_pool, tempWriteFd_pool, poolStorageArray, nextAvailablePos_pool, poolCounter, finishedJobs, maxJobsInPool);
+						
+								for(i=0; i<nextAvailablePos; i++)
+									free(coordStorageArray[i].jobInfoArray);
+								free(coordStorageArray);
+								
+								free(poolStorageArray);
+								free(fifo_READ);
+								free(fifo_WRITE);
+								free(path);
+								close(tempReadFd_pool);
+								close(tempWriteFd_pool);
+								exit(EXIT_SUCCESS);
+								
 							}
 							/* elegxos katastasis jobs */
 							for(i=0; i<nextAvailablePos_pool; i++)
@@ -653,7 +659,17 @@ int main(int argc, char const *argv[])
 			}
 			else if(strcmp(split, SHUTDOWN) == 0)
 			{
-				shutdown_coord(readfd, writefd, coordStorageArray, poolCounter);
+				shutdown_coord(readfd, writefd, coordStorageArray, poolCounter, jobCounter);
+				for(i=0; i<nextAvailablePos; i++)
+					free(coordStorageArray[i].jobInfoArray);
+			    free(coordStorageArray);
+				free(fifo_READ);
+				free(fifo_WRITE);
+				free(path);
+				close(readfd);
+				close(writefd);
+				exit(EXIT_SUCCESS);
+
 			}
 			else
 			{
