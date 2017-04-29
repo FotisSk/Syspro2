@@ -68,7 +68,7 @@ void shutdown_coord(int readfd, int writefd, poolInfo *coordStorageArray, int po
 						}
 						split = strtok(messageFromPool, "_\n");
 						split = strtok(NULL, "_\n");
-						inProgress = atoi(split);
+						inProgress = inProgress + atoi(split);
 						split = strtok(NULL, "_\n");
 						j = 0;
 						while(split) //i while(j < maxJobsInPool)
@@ -129,19 +129,21 @@ void shutdown_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray,
 			}
 			while(1)	//sigoureuomaste oti pige to SIGTERM sto process, pianoume kai tin periptosi na oloklirothike fisiologika ligo prin ftasei to SIGTERM
 			{
-				if(waitpid(poolStorageArray[i].job_PID, &status, WNOHANG | WCONTINUED) > 0)
+				if(waitpid(poolStorageArray[i].job_PID, &status, WNOHANG | WUNTRACED) > 0)
 				{
 					if( WIFSIGNALED(status) )	//terminated by a signal
 					{
 						finishedJobs++;
 						poolStorageArray[i].job_STATUS = 1;
 						printf("(pool%d) job%d (%d): terminated (signal) in shutdown\n", poolCounter, poolStorageArray[i].job_NUM, poolStorageArray[i].job_PID);
+						break;
 					}
 					else if( WIFEXITED(status) )	//terminated normally
 					{
 						finishedJobs++;
 						poolStorageArray[i].job_STATUS = 1;
 						printf("(pool%d) job%d (%d): finished (normally) in shutdown\n", poolCounter, poolStorageArray[i].job_NUM, poolStorageArray[i].job_PID);
+						break;
 					}
 				}
 			}
