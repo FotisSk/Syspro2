@@ -37,7 +37,7 @@ int main(int argc, char const *argv[])
 	char *w="-w", *r="-r", *l="-l", *n="-n", *fifo_READ, *fifo_WRITE, *path, *split, *split2, *split3, **next;
 	char buf[buf_SIZE], copyBuf[buf_SIZE], copyBuf2[buf_SIZE], copyBuf_pool[buf_SIZE], message[buf_SIZE],
 			messageToCoord[buf_SIZE], messageFromPool[buf_SIZE], messageFromConsole[buf_SIZE], messageFromCoord[buf_SIZE], messageToPool[buf_SIZE], messageToConsole[buf_SIZE],
-				poolName_in[15], poolName_out[15], dirName[50], jobPath[100], poolBuf[buf_SIZE], buf_reply[3], buf_OK[] = "OK", buf_PRINTEND[] = "PRINTEND", buf_DONE[] = "DONE";
+				poolName_in[buf_SIZE], poolName_out[buf_SIZE], dirName[buf_SIZE], jobPath[buf_SIZE], poolBuf[buf_SIZE], buf_reply[3], buf_OK[] = "OK", buf_PRINTEND[] = "PRINTEND", buf_DONE[] = "DONE";
 
 	poolInfo *coordStorageArray;
 	jobInfo *poolStorageArray;
@@ -45,6 +45,12 @@ int main(int argc, char const *argv[])
 	mode_t fdmode;
 	time_t currentTime;
 	struct tm myTime;
+
+	memset(poolName_in, 0, buf_SIZE);
+	memset(poolName_out, 0, buf_SIZE);
+	memset(dirName, 0, buf_SIZE);
+	memset(jobPath, 0, buf_SIZE);
+
 
 	memset(buf, 0, buf_SIZE);
 	memset(copyBuf, 0, buf_SIZE);
@@ -190,14 +196,14 @@ int main(int argc, char const *argv[])
 					poolCounter++;
 				
 					/* ________FIFO CREATION________ */
-					sprintf(poolName_in, "pool%d_in", poolCounter);
+					sprintf(poolName_in, "%spool%d_in", path, poolCounter);
 					if( mkfifo(poolName_in, PERMS) < 0 && errno != EEXIST)
 					{
 						perror("can't create FIFO (read)");
 						exit(EXIT_FAILURE);
 					}
 
-					sprintf(poolName_out, "pool%d_out", poolCounter);
+					sprintf(poolName_out, "%spool%d_out", path, poolCounter);
 					if( mkfifo(poolName_out, PERMS) < 0 && errno != EEXIST )
 					{
 						perror("can't create FIFO (write)");
@@ -395,9 +401,8 @@ int main(int argc, char const *argv[])
 									{
 										/* directory and file creation */
 										jobPID = getpid();
-										sprintf(dirName, "sdi1000155_%d_%d_%d%02d%02d_%02d%02d%02d", jobID, jobPID, myTime.tm_year+1900, myTime.tm_mon+1, myTime.tm_mday, myTime.tm_hour, myTime.tm_min, myTime.tm_sec);
+										sprintf(dirName, "%ssdi1000155_%d_%d_%d%02d%02d_%02d%02d%02d", path, jobID, jobPID, myTime.tm_year+1900, myTime.tm_mon+1, myTime.tm_mday, myTime.tm_hour, myTime.tm_min, myTime.tm_sec);
 										mkdir(dirName, PERMS);
-										memset(jobPath, 0, 100);
 										sprintf(jobPath, "%s/stdout_%d.txt", dirName, jobID);
 										printf("(job) job%d Path: %s\n", jobID, jobPath);
 										if ( (stdoutToFile = open(jobPath, O_CREAT | O_TRUNC | O_RDWR, PERMS)) == -1)
@@ -406,7 +411,7 @@ int main(int argc, char const *argv[])
 											exit(EXIT_FAILURE);
 										}
 
-										memset(jobPath, 0, 100);
+										memset(jobPath, 0, buf_SIZE);
 										sprintf(jobPath, "%s/stderr_%d.txt", dirName, jobID);
 										if ( (stderrToFile = open(jobPath, O_CREAT | O_TRUNC | O_RDWR, PERMS)) == -1)
 										{
