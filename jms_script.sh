@@ -22,10 +22,6 @@ then
 	fi
 fi 
 
-echo "path:" ${path}
-echo "command:" ${command}
-
-
 if [ $command == "list" ]
 then
 	echo "List of job directories"
@@ -33,27 +29,33 @@ then
 
 elif [ $command == "purge" ]
 then
-	echo "Deleting job directories in specified path..."
+	echo "Deleting job directories in ${path}"
 	for x in $(find $path -type d -name '*sdi1000155*')
 	do
 		rm -r $x
 	done
-	
+
 	#svise ola ta named pipes sto path
-	echo "Deleting fifos in specified path..."
+	echo "Deleting fifos in ${path}"
 	find $path -type p -delete
 
 	#an to path den itan to current dir . tote svise kai ta named pipes sto durrent dir .
-	if [ $path != "." ]
+	if [ $path != "./" ]
 	then
-		echo "Deleting fifos in current directory as well..."
+		echo "Deleting fifos in current directory as well"
 		find . -type p -delete
 	fi
 
 elif [ $command == "size" ]
 then
-	echo "size command"
-	echo $top
+	if [ $top -eq -1 ]
+	then
+		du $path -h --exclude="./" --max-depth=1 ${path}sdi1000155_* | cut -f 1 | sort -h
+	else
+		top=$((top+1 ))
+		du $path -h --exclude="./" --max-depth=1 ${path}sdi1000155_* | cut -f 1 | sort -hr | head -$top
+	fi
+
 
 else
 	echo "wrong command given"
