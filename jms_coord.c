@@ -180,6 +180,7 @@ int main(int argc, char const *argv[])
 								{
 									if(strcmp(messageFromConsole, "OK") == 0)
 										break;
+									
 								}
 							}
 							write(writefd, buf_PRINTEND, 9);
@@ -620,11 +621,31 @@ int main(int argc, char const *argv[])
 			{
 				split = strtok(NULL, " \n");
 				jobID2 = atoi(split);
-				poolPos = (jobID2 - 1) / maxJobsInPool;	//position in the coordStorageArray
-
-				status_coord(readfd, writefd, copyBuf, coordStorageArray, jobID2, poolPos);
-				memset(buf, 0, buf_SIZE);
-				memset(copyBuf, 0, buf_SIZE);
+				if(jobID2 > jobCounter)
+				{
+					sprintf(messageToConsole, "JobID %d does't exist", jobID2);
+					write(writefd, messageToConsole, buf_SIZE);
+					while(1)
+					{
+						if(read(readfd, messageFromConsole, buf_SIZE) > 0)
+						{
+							if(strcmp(messageFromConsole, "OK") == 0)
+							{
+								memset(messageFromConsole, 0, buf_SIZE);
+								break;
+							}
+						}
+					}
+					memset(messageToConsole, 0, buf_SIZE);
+					write(writefd, buf_PRINTEND, 9);	//write ston console to PRINTEND gia na stamatisei na perimenei kai alla prints
+				}
+				else
+				{
+					poolPos = (jobID2 - 1) / maxJobsInPool;	//position in the coordStorageArray
+					status_coord(readfd, writefd, copyBuf, coordStorageArray, jobID2, poolPos);
+					memset(buf, 0, buf_SIZE);
+					memset(copyBuf, 0, buf_SIZE);
+				}
 			}
 			else if(strcmp(split, STATUSALL) == 0)
 			{
@@ -652,19 +673,62 @@ int main(int argc, char const *argv[])
 			{
 				split = strtok(NULL, " \n");
 				jobID2 = atoi(split);
-				poolPos = (jobID2 - 1) / maxJobsInPool;	//position in the coordStorageArray
-				suspend_coord(readfd, writefd, copyBuf, coordStorageArray, jobID2, poolPos);
+				if(jobID2 > jobCounter)
+				{
+					sprintf(messageToConsole, "JobID %d does't exist", jobID2);
+					write(writefd, messageToConsole, buf_SIZE);
+					while(1)
+					{
+						if(read(readfd, messageFromConsole, buf_SIZE) > 0)
+						{
+							if(strcmp(messageFromConsole, "OK") == 0)
+							{
+								memset(messageFromConsole, 0, buf_SIZE);
+								break;
+							}
+						}
+					}
+					memset(messageToConsole, 0, buf_SIZE);
+					write(writefd, buf_PRINTEND, 9);	//write ston console to PRINTEND gia na stamatisei na perimenei kai alla prints
+				}
+				else
+				{
+					poolPos = (jobID2 - 1) / maxJobsInPool;	//position in the coordStorageArray
+					suspend_coord(readfd, writefd, copyBuf, coordStorageArray, jobID2, poolPos);
+				}
 			}
 			else if(strcmp(split, RESUME) == 0)
 			{
 				split = strtok(NULL, " \n");
 				jobID2 = atoi(split);
-				poolPos = (jobID2 - 1) / maxJobsInPool;	//position in the coordStorageArray
-				resume_coord(readfd, writefd, copyBuf, coordStorageArray, jobID2, poolPos);
+				if(jobID2 > jobCounter)
+				{
+					sprintf(messageToConsole, "JobID %d doesn't exist", jobID2);
+					write(writefd, messageToConsole, buf_SIZE);
+					while(1)
+					{
+						if(read(readfd, messageFromConsole, buf_SIZE) > 0)
+						{
+							if(strcmp(messageFromConsole, "OK") == 0)
+							{
+								memset(messageFromConsole, 0, buf_SIZE);
+								break;
+							}
+						}
+					}
+					memset(messageToConsole, 0, buf_SIZE);
+					write(writefd, buf_PRINTEND, 9);	//write ston console to PRINTEND gia na stamatisei na perimenei kai alla prints
+				}
+				else
+				{
+					poolPos = (jobID2 - 1) / maxJobsInPool;	//position in the coordStorageArray
+					resume_coord(readfd, writefd, copyBuf, coordStorageArray, jobID2, poolPos);
+				}
 			}
 			else if(strcmp(split, SHUTDOWN) == 0)
 			{
 				shutdown_coord(readfd, writefd, coordStorageArray, poolCounter, jobCounter);
+				printf("Coordinator terminated\n");
 				for(i=0; i<nextAvailablePos; i++)
 					free(coordStorageArray[i].jobInfoArray);
 			    free(coordStorageArray);

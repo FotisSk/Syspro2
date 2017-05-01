@@ -24,6 +24,22 @@ void showactive_coord(int readfd, int writefd, char *buffer, poolInfo *coordStor
 	memset(messageToConsole, 0, buf_SIZE);
 	memset(messageFromPool, 0, buf_SIZE);
 
+	sprintf(messageToConsole, "Active jobs:");
+	write(writefd, messageToConsole, buf_SIZE);
+	while(1)
+	{
+		if(read(readfd, messageFromConsole, buf_SIZE) > 0)
+		{
+			if(strcmp(messageFromConsole, "OK") == 0)
+			{
+				memset(messageFromConsole, 0, buf_SIZE);
+				break;
+			}
+		}
+	}
+	memset(messageToConsole, 0, buf_SIZE);
+
+
 	for(i=0; i<numOfPools; i++)	//gia kathe ena apo ta iparxonta pools
 	{
 		if(coordStorageArray[i].pool_STATUS == 0)

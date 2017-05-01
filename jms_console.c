@@ -11,9 +11,9 @@
 
 int main(int argc, char const *argv[])
 {
-	int i, a=0, b=0, c=0, readfd, writefd, n, bytesRead, thereIsAFile;
+	int i, a=0, b=0, c=0, readfd, writefd, n, bytesRead, thereIsAFile, terminate;
 	char fileBuf[fileBuf_SIZE], userBuf[userBuf_SIZE], messageFromCoord[buf_SIZE], buf_OK[] = "OK";
-	char *w="-w", *r="-r", *o="-o", *fifo_READ, *fifo_WRITE, *fileName;
+	char *w="-w", *r="-r", *o="-o", *fifo_READ, *fifo_WRITE, *fileName, *split;
 	FILE *fp;
 
 	if(argc == 7)	//diavasma apo arxeio
@@ -96,7 +96,7 @@ int main(int argc, char const *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-
+	terminate = 0;
 	memset(messageFromCoord, 0, buf_SIZE);
 
 	if(thereIsAFile == 1)
@@ -112,13 +112,16 @@ int main(int argc, char const *argv[])
 				if(fileBuf[n-1] == '\n')	//exclude '\n'
 					n--;
 				write(writefd, fileBuf, n);
+
+				split = strtok(fileBuf, " \n");
+				if( (strcmp(split, SHUTDOWN) == 0) )
+					terminate = 1;
 				memset(fileBuf, 0, fileBuf_SIZE);
 
 				while(1)
 				{
 					if( (bytesRead = read(readfd, messageFromCoord, buf_SIZE)) > 0)
 					{
-						//write(writefd, buf_OK, 3);
 						if(strcmp(messageFromCoord, "PRINTEND") == 0)
 						{
 							printf("\n");
@@ -130,49 +133,63 @@ int main(int argc, char const *argv[])
 							write(writefd, buf_OK, 3);
 							printf("%s\n", messageFromCoord);
 							memset(messageFromCoord, 0, buf_SIZE);
-							//break;
 						}
 					}
 				}
-
+				if(terminate == 1)
+				{
+					printf("Console terminated\n");
+					break;
+				}
 			}
 		}
 		fclose(fp);
 		free(fileName);
 	}
-	//NA MI MPEI AN EXEI DOTHEI SHUTDOWN
-	//if( den exei dothei edoli shutdown, tote... )
-	printf("You are in control\n");
-	printf("> ");
-	while( fgets(userBuf, userBuf_SIZE, stdin) != NULL )
-	{
-		/* ________WRITE TO FIFO________ */
-		n = strlen(userBuf);
-		if(userBuf[n-1] == '\n')	//exclude '\n'
-			n--;
-		write(writefd, userBuf, n);
-		memset(userBuf, 0, userBuf_SIZE);
 
-		while(1)
+	if(terminate == 0)
+	{
+		printf("You are in control\n");
+		printf("> ");
+		while( fgets(userBuf, userBuf_SIZE, stdin) != NULL )
 		{
-			if( (bytesRead = read(readfd, messageFromCoord, buf_SIZE)) > 0)
+			/* ________WRITE TO FIFO________ */
+			n = strlen(userBuf);
+			if(userBuf[n-1] == '\n')	//exclude '\n'
+				n--;
+			write(writefd, userBuf, n);
+
+			split = strtok(userBuf, " \n");
+			if( (strcmp(split, SHUTDOWN) == 0) )
+				terminate = 1;
+			memset(userBuf, 0, userBuf_SIZE);
+
+			while(1)
 			{
-				if(strcmp(messageFromCoord, "PRINTEND") == 0)
+				if( (bytesRead = read(readfd, messageFromCoord, buf_SIZE)) > 0)
 				{
-					printf("\n");
-					memset(messageFromCoord, 0, buf_SIZE);
-					break;
-				}
-				else
-				{
-					write(writefd, buf_OK, 3);
-					printf("%s\n", messageFromCoord);
-					memset(messageFromCoord, 0, buf_SIZE);
-					//break;
+					if(strcmp(messageFromCoord, "PRINTEND") == 0)
+					{
+						printf("\n");
+						memset(messageFromCoord, 0, buf_SIZE);
+						break;
+					}
+					else
+					{
+						write(writefd, buf_OK, 3);
+						printf("%s\n", messageFromCoord);
+						memset(messageFromCoord, 0, buf_SIZE);		
+					}
 				}
 			}
+			if(terminate == 1)
+			{
+				printf("Console terminated\n");
+				break;
+			}
+			else
+				printf("> ");
 		}
-		printf("> ");
 	}
 	/**********************************************************************************************/
 

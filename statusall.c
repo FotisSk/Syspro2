@@ -19,11 +19,30 @@ void statusall_coord(int readfd, int writefd, char *buffer, poolInfo *coordStora
 	char messageFromConsole[buf_SIZE], messageToConsole[buf_SIZE], messageFromPool[buf_SIZE];
 	char buf_PRINTEND[] = "PRINTEND", buf_OK[] = "OK";
 	char *split;
+	time_t currentTime;
+	struct tm myTime;
 
 	memset(messageFromConsole, 0, buf_SIZE);
 	memset(messageToConsole, 0, buf_SIZE);
 	memset(messageFromPool, 0, buf_SIZE);
 
+	currentTime = time(NULL);
+	myTime = *localtime(&currentTime);
+
+	sprintf(messageToConsole, "Status all:");
+	write(writefd, messageToConsole, buf_SIZE);
+	while(1)
+	{
+		if(read(readfd, messageFromConsole, buf_SIZE) > 0)
+		{
+			if(strcmp(messageFromConsole, "OK") == 0)
+			{
+				memset(messageFromConsole, 0, buf_SIZE);
+				break;
+			}
+		}
+	}
+	memset(messageToConsole, 0, buf_SIZE);
 
 	for(i=0; i<numOfPools; i++)	//gia kathe ena apo ta iparxonta pools
 	{
@@ -32,20 +51,23 @@ void statusall_coord(int readfd, int writefd, char *buffer, poolInfo *coordStora
 		{
 			for(j=0; j<coordStorageArray[i].nextAvailablePos; j++) 	//tote gia kathe job pou iparxei mesa sto pool
 			{
-				sprintf(messageToConsole, "JobID %d Status: Finished", coordStorageArray[i].jobInfoArray[j].job_NUM);
-				write(writefd, messageToConsole, buf_SIZE);
-				while(1)
+				if(coordStorageArray[i].jobInfoArray[j].startTimeInSeconds >= (((myTime.tm_hour*3600) + (myTime.tm_min*60) + myTime.tm_sec) - timeDuration))
 				{
-					if(read(readfd, messageFromConsole, buf_SIZE) > 0)	//perimenei to OK tou console oti diavastike
+					sprintf(messageToConsole, "JobID %d Status: Finished", coordStorageArray[i].jobInfoArray[j].job_NUM);
+					write(writefd, messageToConsole, buf_SIZE);
+					while(1)
 					{
-						if(strcmp(messageFromConsole, "OK") == 0)
+						if(read(readfd, messageFromConsole, buf_SIZE) > 0)	//perimenei to OK tou console oti diavastike
 						{
-							memset(messageFromConsole, 0, buf_SIZE);
-							break;
+							if(strcmp(messageFromConsole, "OK") == 0)
+							{
+								memset(messageFromConsole, 0, buf_SIZE);
+								break;
+							}
 						}
 					}
+					memset(messageToConsole, 0, buf_SIZE);
 				}
-				memset(messageToConsole, 0, buf_SIZE);
 			}	
 		}
 		else
