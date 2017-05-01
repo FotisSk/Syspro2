@@ -32,11 +32,11 @@ void suspend_coord(int readfd, int writefd, char *buffer, poolInfo *coordStorage
 		{
 			if(read(coordStorageArray[poolPos].in, messageFromPool, buf_SIZE) > 0)	//an diavaseis minima apo to pool
 			{
-				printf("(coord) diavase apo pool minima: %s\n", messageFromPool);
+				//printf("(coord) diavase apo pool minima: %s\n", messageFromPool);
 				if(strchr(messageFromPool, '_')) 	//tote einai minima termatismou
 				{
 					write(coordStorageArray[poolPos].out, buf_OK, 3);	//dose tin adeia stin pool na termatisei
-					printf("(coord A) Termination Info. Reading from pool%d\n", poolPos+1);
+					//printf("(coord A) Termination Info. Reading from pool%d\n", poolPos+1);
 					//efoson mpikame edo simainei oti to pool exei xtipisei exit() i tha xtipisei para poli sidoma, ara...
 					while(1)
 					{
@@ -53,7 +53,7 @@ void suspend_coord(int readfd, int writefd, char *buffer, poolInfo *coordStorage
 					split = strtok(messageFromPool, "_\n");
 					split = strtok(NULL, "_\n");
 					j = 0;
-					while(split) //i while(j < maxJobsInPool)
+					while(split)
 					{ 
 						coordStorageArray[poolPos].jobInfoArray[j].job_PID = atoi(split);
 						split = strtok(NULL, "_\n");
@@ -122,7 +122,7 @@ void suspend_coord(int readfd, int writefd, char *buffer, poolInfo *coordStorage
 							if(strcmp(split, "I") == 0)	//plirofories termatismou pool
 							{
 								write(coordStorageArray[i].out, buf_OK, 3);	//dose tin adeia stin pool na termatisei
-								printf("(coord B: suspend) Termination Info. Reading from pool%d\n", i+1);
+								//printf("(coord B: suspend) Termination Info. Reading from pool%d\n", i+1);
 
 								//efoson mpikame edo simainei oti to pool exei xtipisei exit() i tha xtipisei para poli sidoma, ara...
 								while(1)
@@ -149,7 +149,6 @@ void suspend_coord(int readfd, int writefd, char *buffer, poolInfo *coordStorage
 									coordStorageArray[i].jobInfoArray[j].job_STATUS = atoi(split); //prepei na einai 1:finished
 									split = strtok(NULL, "_\n");
 									coordStorageArray[i].jobInfoArray[j].startTimeInSeconds = atoi(split);
-									
 									coordStorageArray[i].nextAvailablePos++;
 									split = strtok(NULL, "_\n");
 									j++;
@@ -158,7 +157,7 @@ void suspend_coord(int readfd, int writefd, char *buffer, poolInfo *coordStorage
 							}
 							else 	//mono gia error check!! den prepei na mpainei edo
 							{
-								printf("(coord) Just a message: %s\n", messageFromPool);
+								//printf("(coord) Just a message: %s\n", messageFromPool);
 								write(writefd, messageFromPool, buf_SIZE);
 							}
 							memset(messageFromPool, 0, buf_SIZE);
@@ -215,7 +214,6 @@ int suspend_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, i
 				}
 				else if( WIFEXITED(status) )	//terminated normally
 				{
-					//finishedJobs++;
 					poolStorageArray[posInPoolStorage].job_STATUS = 1;
 					printf("(pool) job%d (%d): finished (normally) in suspend\n", poolStorageArray[posInPoolStorage].job_NUM, poolStorageArray[posInPoolStorage].job_PID);
 					sprintf(messageToCoord, "suspend failed: job%d (%d) is finished", poolStorageArray[posInPoolStorage].job_NUM, poolStorageArray[posInPoolStorage].job_PID);
@@ -224,12 +222,12 @@ int suspend_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, i
 					{
 						if(read(readfd_pool, messageFromCoord, buf_SIZE) > 0)
 						{
-							printf("messageFromCoord (status): %s\n", messageFromCoord);
+							//printf("messageFromCoord (status): %s\n", messageFromCoord);
 							if(strcmp(messageFromCoord, "OK") == 0)
 								break;
 							else
 							{
-								printf("ERROR: 1\n");
+								//printf("ERROR: 1\n");
 								//memset(messageFromCoord, 0, buf_SIZE);
 							}
 						}
@@ -246,18 +244,17 @@ int suspend_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, i
 		poolStorageArray[posInPoolStorage].timeActive = poolStorageArray[posInPoolStorage].timeActive + (poolStorageArray[posInPoolStorage].stop - poolStorageArray[posInPoolStorage].cont); //timeActive otan egine to stop 
 
 		sprintf(messageToCoord, "Sent suspend signal to JobID  %d", poolStorageArray[posInPoolStorage].job_NUM);
-		printf("timeActive: %d\n", poolStorageArray[posInPoolStorage].timeActive);
 		write(writefd_pool, messageToCoord, buf_SIZE);
 		while(1)
 		{
 			if(read(readfd_pool, messageFromCoord, buf_SIZE) > 0)
 			{
-				printf("messageFromCoord (status): %s\n", messageFromCoord);
+				//printf("messageFromCoord (status): %s\n", messageFromCoord);
 				if(strcmp(messageFromCoord, "OK") == 0)
 					break;
 				else
 				{
-					printf("ERROR: 1\n");
+					//printf("ERROR: 1\n");
 					//memset(messageFromCoord, 0, buf_SIZE);
 				}
 			}
@@ -273,12 +270,12 @@ int suspend_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, i
 		{
 			if(read(readfd_pool, messageFromCoord, buf_SIZE) > 0)
 			{
-				printf("messageFromCoord (status): %s\n", messageFromCoord);
+				//printf("messageFromCoord (status): %s\n", messageFromCoord);
 				if(strcmp(messageFromCoord, "OK") == 0)
 					break;
 				else
 				{
-					printf("ERROR: 1\n");
+					//printf("ERROR: 1\n");
 					//memset(messageFromCoord, 0, buf_SIZE);
 				}
 			}
@@ -294,12 +291,12 @@ int suspend_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, i
 		{
 			if(read(readfd_pool, messageFromCoord, buf_SIZE) > 0)
 			{
-				printf("messageFromCoord (status): %s\n", messageFromCoord);
+				//printf("messageFromCoord (status): %s\n", messageFromCoord);
 				if(strcmp(messageFromCoord, "OK") == 0)
 					break;
 				else
 				{
-					printf("ERROR: 1\n");
+					//printf("ERROR: 1\n");
 					//memset(messageFromCoord, 0, buf_SIZE);
 				}
 			}

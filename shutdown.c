@@ -47,11 +47,12 @@ void shutdown_coord(int readfd, int writefd, poolInfo *coordStorageArray, int po
 			{
 				if(read(coordStorageArray[i].in, messageFromPool, buf_SIZE) > 0)
 				{
-					printf("(coord shut) diavase apo pool minima: %s\n", messageFromPool);
+					//printf("(coord shut) diavase apo pool minima: %s\n", messageFromPool);
 					if(strchr(messageFromPool, '_')) 	//tote einai minima termatismou
 					{
 						write(coordStorageArray[i].out, buf_OK, 3);	//dose tin adeia stin pool na termatisei
-						printf("(coord shut) Termination Info. Reading from pool%d\n", i+1);
+						//printf("(coord shut) Termination Info. Reading from pool%d\n", i+1);
+
 						//efoson mpikame edo simainei oti to pool exei xtipisei exit() i tha xtipisei para poli sidoma, ara...
 						while(1)
 						{
@@ -60,7 +61,7 @@ void shutdown_coord(int readfd, int writefd, poolInfo *coordStorageArray, int po
 								coordStorageArray[i].pool_STATUS = 1; 	//0:active, 1:finished
 								poolsFinished++;
 								printf("(coord shut) pool%d (%d) has finished\n", coordStorageArray[i].pool_NUM, coordStorageArray[i].pool_PID);
-								printf("(coord shut) pools finished: %d\n", poolsFinished);
+								//printf("(coord shut) pools finished: %d\n", poolsFinished);
 								close(coordStorageArray[i].in);
 								close(coordStorageArray[i].out);
 								break;
@@ -71,7 +72,7 @@ void shutdown_coord(int readfd, int writefd, poolInfo *coordStorageArray, int po
 						inProgress = inProgress + atoi(split);
 						split = strtok(NULL, "_\n");
 						j = 0;
-						while(split) //i while(j < maxJobsInPool)
+						while(split)
 						{ 
 							coordStorageArray[i].jobInfoArray[j].job_PID = atoi(split);
 							split = strtok(NULL, "_\n");
@@ -195,7 +196,7 @@ void shutdown_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray,
 					{
 						finishedJobs++;
 						poolStorageArray[i].job_STATUS = 1;
-						printf("(pool%d shutdown) job%d (%d): finished (normally) in shutdown\n", poolCounter, poolStorageArray[i].job_NUM, poolStorageArray[i].job_PID);
+						//printf("(pool%d shutdown) job%d (%d): finished (normally) in shutdown\n", poolCounter, poolStorageArray[i].job_NUM, poolStorageArray[i].job_PID);
 						break;
 					}
 				}
@@ -205,7 +206,7 @@ void shutdown_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray,
 
 	if(finishedJobs == maxJobsInPool)
 	{
-		printf("(pool%d) %d: all of its in-progress-jobs were forced to terminate\n", poolCounter, pid); //den eimai sigouros gia to poolCounter an einai sosto, thelei check!!!!
+		printf("(pool%d) %d: all of its in-progress-jobs were forced to terminate\n", poolCounter, pid);
 		sprintf(message, "I_%d", inProgress);
 		strcat(messageToCoord, message);
 
@@ -215,7 +216,7 @@ void shutdown_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray,
 			strcat(messageToCoord, message);
 		}
 								
-		printf("(pool%d) %s\n", poolCounter, messageToCoord);
+		//printf("(pool%d) %s\n", poolCounter, messageToCoord);
 		write(writefd_pool, messageToCoord, buf_SIZE);
 
 		//perimenei ton coord na tou dosei to ok gia na kanei exit
@@ -225,7 +226,7 @@ void shutdown_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray,
 			{
 				if(strcmp(messageFromCoord, "OK") == 0)
 				{
-					printf("(pool%d) Time to exit.\n", poolCounter);
+					//printf("(pool%d) Time to exit.\n", poolCounter);
 					break;
 				}
 				else
@@ -245,7 +246,7 @@ void shutdown_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray,
 			strcat(messageToCoord, message);
 		}
 									
-		printf("(pool%d) %s\n", poolCounter, messageToCoord);
+		//printf("(pool%d) %s\n", poolCounter, messageToCoord);
 		write(writefd_pool, messageToCoord, buf_SIZE);
 		//perimenei ton coord na tou dosei to ok gia na kanei exit
 		while(1)
@@ -254,7 +255,7 @@ void shutdown_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray,
 			{
 				if(strcmp(messageFromCoord, "OK") == 0)
 				{
-					printf("(pool%d) Time to exit.\n", poolCounter);
+					//printf("(pool%d) Time to exit.\n", poolCounter);
 					break;
 				}
 				else

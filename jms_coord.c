@@ -56,12 +56,12 @@ int main(int argc, char const *argv[])
 	memset(copyBuf, 0, buf_SIZE);
 	memset(copyBuf_pool, 0, buf_SIZE);
 	
-	memset(messageFromPool, 0, buf_SIZE); //einai tou coord
+	memset(messageFromPool, 0, buf_SIZE); 
 	memset(messageToPool, 0, buf_SIZE);
-	memset(messageFromConsole, 0, buf_SIZE); //einai tou coord
-	memset(messageToConsole, 0, buf_SIZE); //einai tou coord
-	memset(messageFromCoord, 0, buf_SIZE); //einai tou pool
-	memset(messageToCoord, 0, buf_SIZE); //einai tou pool
+	memset(messageFromConsole, 0, buf_SIZE); 
+	memset(messageToConsole, 0, buf_SIZE);
+	memset(messageFromCoord, 0, buf_SIZE); 
+	memset(messageToCoord, 0, buf_SIZE);
 	
 
 	if(argc == 9)
@@ -136,7 +136,6 @@ int main(int argc, char const *argv[])
 				perror("coord: can't open write FIFO");
 				exit(EXIT_FAILURE);
 			}
-			//printf("bytesRead: %d, writefd: %d\n",bytesRead, writefd );
 			break;
 		}
 	}
@@ -155,8 +154,6 @@ int main(int argc, char const *argv[])
 			printf("\n");
 			printf("(coord) buf: %s\n",buf);
 			
-			//write(writefd, buf_OK, 3); //eidopoihse to allo akro oti diavastike auto pou esteile
-
 			strcpy(copyBuf, buf);
 			split = strtok(buf, " \n");
 			if(strcmp(split, SUBMIT) == 0)
@@ -232,7 +229,6 @@ int main(int argc, char const *argv[])
 									perror("(coord) can't open write FIFO");
 									exit(EXIT_FAILURE);
 								}
-								//printf("bytesRead: %d, writefd: %d\n",bytesRead, tempWriteFd_coord );
 								break;
 							}
 						}
@@ -327,64 +323,41 @@ int main(int argc, char const *argv[])
 
 
 
-						/* Keep reading and checking */
+						/* Keep reading and checking - POOL - */
 						while(1)
 						{
 							if( (bytesRead = read(tempReadFd_pool, poolBuf, buf_SIZE)) > 0)
 							{
-								//write(tempWriteFd_pool, buf_OK, 3);		//pes ston coord oti diavastike
-								printf("%d poolBuf: %s\n", poolCounter, poolBuf);
+								printf("pool%d: %s\n", poolCounter, poolBuf);
 								strcpy(copyBuf_pool, poolBuf);
 								split2 = strtok(copyBuf_pool, " \n");
-								/*
-								DUMMY
-								DUMMY
-								DUMMY
-								DUMMY
-								DUMMY
-								DUMMY
-								DUMMY
-								DUMMY
-								DUMMY
-								DUMMY
-								DUMMY
-								DUMMY
-								DUMMY
-								DUMMY
-								DUMMY
-								DUMMY
-								DUMMY
-								DUMMY
-								DUMMY
-								*/
+		
 								if(strcmp(split2, SUBMIT) == 0)
 								{
 									jobID++;
+
 									/* Creating argument array */
 									next = arguments;
 									split2 = strtok(NULL, " \n");
 									while(split2)
 									{
 										*next++ = split2;
-										//printf("%s\n",split2);
 										split2 = strtok(NULL, " \n");
 									}
 									*next = NULL;
 
+									/*
 									printf("(pool) Checking:\n");
 									for(next = arguments; *next != 0; next++)
 										puts(*next);
+									*/
 
 									currentTime = time(NULL);
 									myTime = *localtime(&currentTime);
 
-									//printf("sleeping for 1 second...\n");
-									//sleep(4);
-
 									pid = fork();
 									if(pid > 0) 	//pool (father)
 									{
-										//printf("still in pool process: %d\n", getpid());
 										poolStorageArray[nextAvailablePos_pool].job_PID = pid;
 										poolStorageArray[nextAvailablePos_pool].job_NUM = jobID;
 										poolStorageArray[nextAvailablePos_pool].job_STATUS = 0;  			//status -> 0:active, 1:finished, 2:suspended
@@ -405,7 +378,7 @@ int main(int argc, char const *argv[])
 										sprintf(dirName, "%ssdi1000155_%d_%d_%d%02d%02d_%02d%02d%02d", path, jobID, jobPID, myTime.tm_year+1900, myTime.tm_mon+1, myTime.tm_mday, myTime.tm_hour, myTime.tm_min, myTime.tm_sec);
 										mkdir(dirName, PERMS);
 										sprintf(jobPath, "%s/stdout_%d.txt", dirName, jobID);
-										printf("(job) job%d Path: %s\n", jobID, jobPath);
+										//printf("(job) job%d Path: %s\n", jobID, jobPath);
 										if ( (stdoutToFile = open(jobPath, O_CREAT | O_TRUNC | O_RDWR, PERMS)) == -1)
 										{
 											perror("creating out file");
@@ -533,11 +506,9 @@ int main(int argc, char const *argv[])
 							/* elegxos katastasis jobs */
 							for(i=0; i<nextAvailablePos_pool; i++)
 							{
-								//printf("(pool -> job) i: %d\n",i );
 								if( (poolStorageArray[i].job_STATUS == 0) || (poolStorageArray[i].job_STATUS == 2) )
 								{
 									retVal = waitpid(poolStorageArray[i].job_PID, &status, WNOHANG | WUNTRACED);
-									//printf("retVal: %d\n", retVal);
 									if(retVal > 0)	//tote auto to paidi-job termatise
 									{
 										if( WIFEXITED(status) )	//terminated normally
@@ -567,7 +538,7 @@ int main(int argc, char const *argv[])
 
 							if(finishedJobs == maxJobsInPool)
 							{
-								printf("(pool) pool%d (%d): all of its jobs are finished\n", poolCounter, pid); //den eimai sigouros gia to poolCounter an einai sosto, thelei check!!!!
+								//printf("(pool) pool%d (%d): all of its jobs are finished\n", poolCounter, pid); //den eimai sigouros gia to poolCounter an einai sosto, thelei check!!!!
 								sprintf(message, "I");
 								strcat(messageToCoord, message);
 
@@ -577,9 +548,8 @@ int main(int argc, char const *argv[])
 									strcat(messageToCoord, message);
 								}
 								
-								printf("(pool) %s\n", messageToCoord);
+								//printf("(pool) %s\n", messageToCoord);
 								write(tempWriteFd_pool, messageToCoord, buf_SIZE);
-
 								//perimenei ton coord na tou dosei to ok gia na kanei exit
 								while(1)
 								{
@@ -587,7 +557,7 @@ int main(int argc, char const *argv[])
 									{
 										if(strcmp(messageFromCoord, "OK") == 0)
 										{
-											printf("(pool) Time to exit.\n");
+											printf("(pool) pool%d Time to exit.\n", poolCounter);
 											break;
 										}
 										else
@@ -745,22 +715,16 @@ int main(int argc, char const *argv[])
 				printf("Wrong command given\n");
 			}
 
-			//printf("%s\n", buf);
 			memset(buf, 0, buf_SIZE);
 			memset(arguments, 0, 1024);
-			//printf("\n");
 		}
 		else if( bytesRead == 0)
 		{
-			//printf("End Of File. User in control.\n");
 			memset(buf, 0, buf_SIZE);
-			//break;
 		}
 		else if(bytesRead < 0)
 		{
-			//printf("n: %d\n", bytesRead);
 			memset(buf, 0, buf_SIZE);
-
 		}
 		
 		/* elegxos an exoun grapsei kati ta pools */
@@ -776,7 +740,7 @@ int main(int argc, char const *argv[])
 					if(strcmp(split3, "I") == 0)	//plirofories termatismou pool
 					{
 						write(coordStorageArray[i].out, buf_OK, 3);	//dose tin adeia stin pool na termatisei
-						printf("(coord B) Termination Info. Reading from pool%d\n", i+1);
+						//printf("(coord B) Termination Info. Reading from pool%d\n", i+1);
 						//efoson mpikame edo simainei oti to pool exei xtipisei exit() i tha xtipisei para poli sidoma, ara...
 						while(1)
 						{
@@ -793,7 +757,7 @@ int main(int argc, char const *argv[])
 
 						split3 = strtok(NULL, "_\n");
 						j = 0;
-						while(split3) //i while(j < maxJobsInPool)
+						while(split3)
 						{ 
 							coordStorageArray[i].jobInfoArray[j].job_PID = atoi(split3);
 							split3 = strtok(NULL, "_\n");
@@ -811,7 +775,7 @@ int main(int argc, char const *argv[])
 					}
 					else 	//aplo minima ektiposis - denprepei kan na einai edo. gia error check mono!
 					{
-						printf("(coord) Just a message: %s\n", buf);
+						//printf("(coord) Just a message: %s\n", buf);
 						write(writefd, buf, buf_SIZE);
 					}
 					
@@ -821,16 +785,4 @@ int main(int argc, char const *argv[])
 			}
 		}
 	}
-	/*
-	printf("sleeping...\n");
-	sleep(20);
-
-
-	close(readfd);
-	close(writefd);
-	free(fifo_READ);
-	free(fifo_WRITE);
-	free(path);
-	exit(0);
-	*/
 }

@@ -32,18 +32,19 @@ void resume_coord(int readfd, int writefd, char *buffer, poolInfo *coordStorageA
 		{
 			if(read(coordStorageArray[poolPos].in, messageFromPool, buf_SIZE) > 0)	//an diavaseis minima apo to pool
 			{
-				printf("(coord) diavase apo pool minima: %s\n", messageFromPool);
+				//printf("(coord) diavase apo pool minima: %s\n", messageFromPool);
 				if(strchr(messageFromPool, '_')) 	//tote einai minima termatismou
 				{
 					write(coordStorageArray[poolPos].out, buf_OK, 3);	//dose tin adeia stin pool na termatisei
-					printf("(coord A) Termination Info. Reading from pool%d\n", poolPos+1);
+					//printf("(coord A) Termination Info. Reading from pool%d\n", poolPos+1);
+
 					//efoson mpikame edo simainei oti to pool exei xtipisei exit() i tha xtipisei para poli sidoma, ara...
 					while(1)
 					{
 						if(waitpid(coordStorageArray[poolPos].pool_PID, &status, WNOHANG) > 0)
 						{
 							coordStorageArray[poolPos].pool_STATUS = 1; 	//0:active, 1:finished
-							printf("(coord A) pool%d (%d) has finished\n", coordStorageArray[poolPos].pool_NUM, coordStorageArray[poolPos].pool_PID);
+							printf("(coord A: resume) pool%d (%d) has finished\n", coordStorageArray[poolPos].pool_NUM, coordStorageArray[poolPos].pool_PID);
 								
 							close(coordStorageArray[poolPos].in);
 							close(coordStorageArray[poolPos].out);
@@ -53,7 +54,7 @@ void resume_coord(int readfd, int writefd, char *buffer, poolInfo *coordStorageA
 					split = strtok(messageFromPool, "_\n");
 					split = strtok(NULL, "_\n");
 					j = 0;
-					while(split) //i while(j < maxJobsInPool)
+					while(split) 
 					{ 
 						coordStorageArray[poolPos].jobInfoArray[j].job_PID = atoi(split);
 						split = strtok(NULL, "_\n");
@@ -122,7 +123,7 @@ void resume_coord(int readfd, int writefd, char *buffer, poolInfo *coordStorageA
 							if(strcmp(split, "I") == 0)	//plirofories termatismou pool
 							{
 								write(coordStorageArray[i].out, buf_OK, 3);	//dose tin adeia stin pool na termatisei
-								printf("(coord B: resume) Termination Info. Reading from pool%d\n", i+1);
+								//printf("(coord B: resume) Termination Info. Reading from pool%d\n", i+1);
 
 								//efoson mpikame edo simainei oti to pool exei xtipisei exit() i tha xtipisei para poli sidoma, ara...
 								while(1)
@@ -140,7 +141,7 @@ void resume_coord(int readfd, int writefd, char *buffer, poolInfo *coordStorageA
 
 								split = strtok(NULL, "_\n");
 								j = 0;
-								while(split) //i while(j < maxJobsInPool)
+								while(split)
 								{ 
 									coordStorageArray[i].jobInfoArray[j].job_PID = atoi(split);
 									split = strtok(NULL, "_\n");
@@ -149,7 +150,6 @@ void resume_coord(int readfd, int writefd, char *buffer, poolInfo *coordStorageA
 									coordStorageArray[i].jobInfoArray[j].job_STATUS = atoi(split); //prepei na einai 1:finished
 									split = strtok(NULL, "_\n");
 									coordStorageArray[i].jobInfoArray[j].startTimeInSeconds = atoi(split);
-									
 									coordStorageArray[i].nextAvailablePos++;
 									split = strtok(NULL, "_\n");
 									j++;
@@ -158,7 +158,7 @@ void resume_coord(int readfd, int writefd, char *buffer, poolInfo *coordStorageA
 							}
 							else 	//mono gia error check!! den prepei na mpainei edo
 							{
-								printf("(coord) Just a message: %s\n", messageFromPool);
+								//printf("(coord) Just a message: %s\n", messageFromPool);
 								write(writefd, messageFromPool, buf_SIZE);
 							}
 							memset(messageFromPool, 0, buf_SIZE);
@@ -215,7 +215,6 @@ int resume_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, in
 				}
 				else if( WIFEXITED(status) )	//terminated normally
 				{
-					//finishedJobs++;
 					poolStorageArray[posInPoolStorage].job_STATUS = 1;
 					printf("(pool) job%d (%d): finished (normally) in resume\n", poolStorageArray[posInPoolStorage].job_NUM, poolStorageArray[posInPoolStorage].job_PID);
 					sprintf(messageToCoord, "resume failed: job%d (%d) is finished", poolStorageArray[posInPoolStorage].job_NUM, poolStorageArray[posInPoolStorage].job_PID);
@@ -224,7 +223,7 @@ int resume_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, in
 					{
 						if(read(readfd_pool, messageFromCoord, buf_SIZE) > 0)
 						{
-							printf("messageFromCoord (status): %s\n", messageFromCoord);
+							//printf("messageFromCoord (status): %s\n", messageFromCoord);
 							if(strcmp(messageFromCoord, "OK") == 0)
 								break;
 							else
@@ -250,7 +249,7 @@ int resume_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, in
 		{
 			if(read(readfd_pool, messageFromCoord, buf_SIZE) > 0)
 			{
-				printf("messageFromCoord (status): %s\n", messageFromCoord);
+				//printf("messageFromCoord (status): %s\n", messageFromCoord);
 				if(strcmp(messageFromCoord, "OK") == 0)
 					break;
 				else
@@ -271,7 +270,7 @@ int resume_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, in
 		{
 			if(read(readfd_pool, messageFromCoord, buf_SIZE) > 0)
 			{
-				printf("messageFromCoord (status): %s\n", messageFromCoord);
+				//printf("messageFromCoord (status): %s\n", messageFromCoord);
 				if(strcmp(messageFromCoord, "OK") == 0)
 					break;
 				else
@@ -292,7 +291,7 @@ int resume_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, in
 		{
 			if(read(readfd_pool, messageFromCoord, buf_SIZE) > 0)
 			{
-				printf("messageFromCoord (status): %s\n", messageFromCoord);
+				//printf("messageFromCoord (status): %s\n", messageFromCoord);
 				if(strcmp(messageFromCoord, "OK") == 0)
 					break;
 				else

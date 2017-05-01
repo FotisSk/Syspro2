@@ -47,11 +47,11 @@ void status_coord(int readfd, int writefd, char *buffer, poolInfo *coordStorageA
 		{
 			if(read(coordStorageArray[poolPos].in, messageFromPool, buf_SIZE) > 0)	//an diavaseis minima apo to pool
 			{
-				printf("(coord) diavase apo pool minima: %s\n", messageFromPool);
+				//printf("(coord) diavase apo pool minima: %s\n", messageFromPool);
 				if(strchr(messageFromPool, '_')) 	//tote einai minima termatismou
 				{
 					write(coordStorageArray[poolPos].out, buf_OK, 3);	//dose tin adeia stin pool na termatisei
-					printf("(coord A) Termination Info. Reading from pool%d\n", poolPos+1);
+					//printf("(coord A) Termination Info. Reading from pool%d\n", poolPos+1);
 					//efoson mpikame edo simainei oti to pool exei xtipisei exit() i tha xtipisei para poli sidoma, ara...
 					while(1)
 					{
@@ -68,7 +68,7 @@ void status_coord(int readfd, int writefd, char *buffer, poolInfo *coordStorageA
 					split = strtok(messageFromPool, "_\n");
 					split = strtok(NULL, "_\n");
 					j = 0;
-					while(split) //i while(j < maxJobsInPool)
+					while(split)
 					{ 
 						coordStorageArray[poolPos].jobInfoArray[j].job_PID = atoi(split);
 						split = strtok(NULL, "_\n");
@@ -120,8 +120,6 @@ void status_coord(int readfd, int writefd, char *buffer, poolInfo *coordStorageA
 						write(writefd, buf_PRINTEND, 9);
 						return;
 					}
-
-					//write(writefd, buf_PRINTEND, 9); giati to eixa edo?
 					memset(messageFromConsole, 0, buf_SIZE);	
 				}
 			}
@@ -141,7 +139,7 @@ void status_coord(int readfd, int writefd, char *buffer, poolInfo *coordStorageA
 							if(strcmp(split, "I") == 0)	//plirofories termatismou pool
 							{
 								write(coordStorageArray[i].out, buf_OK, 3);	//dose tin adeia stin pool na termatisei
-								printf("(coord B: status) Termination Info. Reading from pool%d\n", i+1);
+								//printf("(coord B: status) Termination Info. Reading from pool%d\n", i+1);
 
 								//efoson mpikame edo simainei oti to pool exei xtipisei exit() i tha xtipisei para poli sidoma, ara...
 								while(1)
@@ -177,7 +175,7 @@ void status_coord(int readfd, int writefd, char *buffer, poolInfo *coordStorageA
 							}
 							else 	//mono gia error check!! den prepei na mpainei edo
 							{
-								printf("(coord) Just a message: %s\n", messageFromPool);
+								//printf("(coord) Just a message: %s\n", messageFromPool);
 								write(writefd, messageFromPool, buf_SIZE);
 							}
 							memset(messageFromPool, 0, buf_SIZE);
@@ -214,19 +212,18 @@ void status_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, i
 			secondsActive = poolStorageArray[posInPoolStorage].timeActive + ( ((myTime.tm_hour*3600) + (myTime.tm_min*60) + myTime.tm_sec ) - poolStorageArray[posInPoolStorage].cont ); // = timeActive + (now-cont)
 
 		secondsActive = ( (myTime.tm_hour*3600) + (myTime.tm_min*60) + myTime.tm_sec ) - poolStorageArray[posInPoolStorage].startTimeInSeconds;
-		//printf("(status_pool) jobID_pool: %d, poolStorageArray[%d].startTimeInSeconds: %d\n", jobID_pool, posInPoolStorage, poolStorageArray[jobID_pool-1].startTimeInSeconds);
 		sprintf(messageToCoord, "JobID %d Status: Active (running for %d seconds)", poolStorageArray[posInPoolStorage].job_NUM, secondsActive);
 		write(writefd_pool, messageToCoord, buf_SIZE);
 		while(1)
 		{
 			if(read(readfd_pool, messageFromCoord, buf_SIZE) > 0)
 			{
-				printf("messageFromCoord (status): %s\n", messageFromCoord);
+				//printf("messageFromCoord (status): %s\n", messageFromCoord);
 				if(strcmp(messageFromCoord, "OK") == 0)
 					break;
 				else
 				{
-					printf("ERROR: 1\n");
+					//printf("ERROR: 1\n");
 					//memset(messageFromCoord, 0, buf_SIZE);
 				}
 			}
@@ -242,12 +239,12 @@ void status_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, i
 		{
 			if(read(readfd_pool, messageFromCoord, buf_SIZE) > 0)
 			{
-				printf("messageFromCoord (status): %s\n", messageFromCoord);
+				//printf("messageFromCoord (status): %s\n", messageFromCoord);
 				if(strcmp(messageFromCoord, "OK") == 0)
 					break;
 				else
 				{
-					printf("ERROR: 2\n");
+					//printf("ERROR: 2\n");
 					//memset(messageFromCoord, 0, buf_SIZE);
 				}
 			}
@@ -267,7 +264,7 @@ void status_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArray, i
 					break;
 				else
 				{
-					printf("ERROR: 3\n");
+					//printf("ERROR: 3\n");
 					//memset(messageFromCoord, 0, buf_SIZE);
 				}
 			}

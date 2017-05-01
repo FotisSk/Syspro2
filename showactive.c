@@ -49,11 +49,11 @@ void showactive_coord(int readfd, int writefd, char *buffer, poolInfo *coordStor
 			{
 				if(read(coordStorageArray[i].in, messageFromPool, buf_SIZE) > 0)
 				{
-					printf("(coord) diavase apo pool minima: %s\n", messageFromPool);
+					//printf("(coord) diavase apo pool minima: %s\n", messageFromPool);
 					if(strchr(messageFromPool, '_'))
 					{
 						write(coordStorageArray[i].out, buf_OK, 3);	//dose tin adeia stin pool na termatisei
-						printf("(coord A) Termination Info. Reading from pool%d\n", i+1);
+						//printf("(coord A) Termination Info. Reading from pool%d\n", i+1);
 
 						//efoson mpikame edo simainei oti to pool exei xtipisei exit() i tha xtipisei para poli sidoma, ara...
 						while(1)
@@ -71,7 +71,7 @@ void showactive_coord(int readfd, int writefd, char *buffer, poolInfo *coordStor
 						split = strtok(messageFromPool, "_\n");
 						split = strtok(NULL, "_\n");
 						j = 0;
-						while(split) //i while(j < maxJobsInPool)
+						while(split)
 						{ 
 							coordStorageArray[i].jobInfoArray[j].job_PID = atoi(split);
 							split = strtok(NULL, "_\n");
@@ -124,7 +124,7 @@ void showactive_coord(int readfd, int writefd, char *buffer, poolInfo *coordStor
 								if(strcmp(split, "I") == 0)	//plirofories termatismou pool
 								{
 									write(coordStorageArray[k].out, buf_OK, 3);	//dose tin adeia stin pool na termatisei
-									printf("(coord B: showactive) Termination Info. Reading from pool%d\n", k+1);
+									//printf("(coord B: showactive) Termination Info. Reading from pool%d\n", k+1);
 
 									//efoson mpikame edo simainei oti to pool exei xtipisei exit() i tha xtipisei para poli sidoma, ara...
 									while(1)
@@ -142,7 +142,7 @@ void showactive_coord(int readfd, int writefd, char *buffer, poolInfo *coordStor
 
 									split = strtok(NULL, "_\n");
 									l = 0;
-									while(split) //i while(j < maxJobsInPool)
+									while(split)
 									{ 
 										coordStorageArray[k].jobInfoArray[l].job_PID = atoi(split);
 										split = strtok(NULL, "_\n");
@@ -161,7 +161,7 @@ void showactive_coord(int readfd, int writefd, char *buffer, poolInfo *coordStor
 								}
 								else 	//mono gia error check!! den prepei na mpainei edo
 								{
-									printf("(coord) Just a message: %s\n", messageFromPool);
+									//printf("(coord) Just a message: %s\n", messageFromPool);
 									write(writefd, messageFromPool, buf_SIZE);
 								}
 								memset(messageFromPool, 0, buf_SIZE);
@@ -195,7 +195,6 @@ void showactive_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArra
 	{
 		if(poolStorageArray[i].job_STATUS == 0)
 		{
-			//secondsActive = ( (myTime.tm_hour*3600) + (myTime.tm_min*60) + myTime.tm_sec ) - poolStorageArray[i].startTimeInSeconds;
 			if(poolStorageArray[i].stop == -1) 	//an den exoun iparksei paremvoles sti leitourgia tou job
 				secondsActive = ( (myTime.tm_hour*3600) + (myTime.tm_min*60) + myTime.tm_sec ) - poolStorageArray[i].startTimeInSeconds; // = now - startTimeInSeconds
 			else //allios an exoun iparksei
@@ -207,7 +206,7 @@ void showactive_pool(int readfd_pool, int writefd_pool, jobInfo *poolStorageArra
 			{
 				if(read(readfd_pool, messageFromCoord, buf_SIZE) > 0)
 				{
-					printf("messageFromCoord (showactive): %s\n", messageFromCoord);
+					//printf("messageFromCoord (showactive): %s\n", messageFromCoord);
 					if(strcmp(messageFromCoord, "OK") == 0)
 					{
 						memset(messageFromCoord, 0, buf_SIZE);
