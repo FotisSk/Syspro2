@@ -642,7 +642,7 @@ int main(int argc, char const *argv[])
 				else
 				{
 					poolPos = (jobID2 - 1) / maxJobsInPool;	//position in the coordStorageArray
-					status_coord(readfd, writefd, copyBuf, coordStorageArray, jobID2, poolPos);
+					status_coord(readfd, writefd, copyBuf, coordStorageArray, nextAvailablePos, jobID2, poolPos);
 					memset(buf, 0, buf_SIZE);
 					memset(copyBuf, 0, buf_SIZE);
 				}
@@ -655,19 +655,19 @@ int main(int argc, char const *argv[])
 				else 
 					timeDuration = 500000; //dinoume epitides mia tixaia megali timi (sigoura megaliteri apo 86400)
 			
-				statusall_coord(readfd, writefd, copyBuf, coordStorageArray, poolCounter, timeDuration);
+				statusall_coord(readfd, writefd, copyBuf, coordStorageArray, nextAvailablePos, poolCounter, timeDuration);
 			}
 			else if(strcmp(split, SHOWACTIVE) == 0)
 			{
-				showactive_coord(readfd, writefd, copyBuf, coordStorageArray, poolCounter);
+				showactive_coord(readfd, writefd, copyBuf, coordStorageArray, nextAvailablePos, poolCounter);
 			}
 			else if(strcmp(split, SHOWPOOLS) == 0)
 			{
-				showpools_coord(readfd, writefd, copyBuf, coordStorageArray, poolCounter);
+				showpools_coord(readfd, writefd, copyBuf, coordStorageArray, nextAvailablePos, poolCounter);
 			}
 			else if(strcmp(split, SHOWFINISHED) == 0)
 			{
-				showfinished_coord(readfd, writefd, copyBuf, coordStorageArray, poolCounter);
+				showfinished_coord(readfd, writefd, copyBuf, coordStorageArray, nextAvailablePos, poolCounter);
 			}
 			else if(strcmp(split, SUSPEND) == 0)
 			{
@@ -694,7 +694,7 @@ int main(int argc, char const *argv[])
 				else
 				{
 					poolPos = (jobID2 - 1) / maxJobsInPool;	//position in the coordStorageArray
-					suspend_coord(readfd, writefd, copyBuf, coordStorageArray, jobID2, poolPos);
+					suspend_coord(readfd, writefd, copyBuf, coordStorageArray, nextAvailablePos, jobID2, poolPos);
 				}
 			}
 			else if(strcmp(split, RESUME) == 0)
@@ -722,7 +722,7 @@ int main(int argc, char const *argv[])
 				else
 				{
 					poolPos = (jobID2 - 1) / maxJobsInPool;	//position in the coordStorageArray
-					resume_coord(readfd, writefd, copyBuf, coordStorageArray, jobID2, poolPos);
+					resume_coord(readfd, writefd, copyBuf, coordStorageArray, nextAvailablePos, jobID2, poolPos);
 				}
 			}
 			else if(strcmp(split, SHUTDOWN) == 0)
@@ -821,6 +821,7 @@ int main(int argc, char const *argv[])
 			}
 		}
 	}
+	/*
 	printf("sleeping...\n");
 	sleep(20);
 
@@ -831,4 +832,5 @@ int main(int argc, char const *argv[])
 	free(fifo_WRITE);
 	free(path);
 	exit(0);
+	*/
 }
